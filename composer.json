@@ -1,0 +1,27 @@
+{
+    "name": "martin3r/platform-strategy",
+    "description": "Strategie-Modul: Mission/Vision, Zukunftsbilder, Fokusräume, Hindernisse, Meilensteine",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Platform Team",
+            "email": "team@platform.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Platform\\Strategy\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Platform\\Strategy\\StrategyServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
