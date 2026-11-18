@@ -23,6 +23,8 @@
 
 namespace Platform\ManagementBook;
 
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -193,7 +195,13 @@ class ManagementBookServiceProvider extends ServiceProvider
          * <livewire:management-book.dashboard />
          */
         $this->registerLivewireComponents();
-        
+
+        // Morph-Alias, Policy, Organization-Bridge (EntityLinkProvider + Link-Hook), Tools
+        $this->registerMorphMap();
+        $this->registerPolicies();
+        $this->registerEntityLinkProvider();
+        $this->registerTools();
+
         /**
          * SCHRITT 7: Tools registrieren (optional)
          * 
@@ -201,6 +209,89 @@ class ManagementBookServiceProvider extends ServiceProvider
          * 
          * $this->registerTools();
          */
+    }
+
+    /**
+     * Morph-Alias 'management_book' (wie 'project' im Planner) — Voraussetzung für DimensionLinks,
+     * HasEntityLinks::getMorphClass() und die Auflösung in der Organization.
+     */
+    protected function registerMorphMap(): void
+    {
+        Relation::morphMap([
+            \Platform\ManagementBook\Models\ManagementBook::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBook::class,
+        ]);
+    }
+
+    protected function registerPolicies(): void
+    {
+        Gate::policy(
+            \Platform\ManagementBook\Models\ManagementBook::class,
+            \Platform\ManagementBook\Policies\ManagementBookPolicy::class
+        );
+    }
+
+    /**
+     * EntityLinkProvider registrieren (lose Kopplung mit dem Organization-Modul, wie PlannerServiceProvider)
+     * und die Aktivierungs-Regel an externe Verknüpfungen koppeln.
+     */
+    protected function registerEntityLinkProvider(): void
+    {
+        try {
+            resolve(\Platform\Organization\Services\EntityLinkRegistry::class)
+                ->register(new \Platform\ManagementBook\Organization\ManagementBookEntityLinkProvider());
+        } catch (\Throwable $e) {
+            // Organization-Modul nicht geladen
+        }
+
+        // Verknüpfungen entstehen nicht nur über den ManagementBookService, sondern auch extern
+        // (organization.entity.link.POST, Terminal-App "Verknüpfungen"). Hier greifen dieselben Regeln:
+        // wird ein AKTIVES Book an einen Knoten gehängt, löst es das dortige aktive Book ab.
+        if (class_exists(\Platform\Organization\Models\OrganizationDimensionLink::class)) {
+            \Platform\Organization\Models\OrganizationDimensionLink::created(function ($link) {
+                $this->onDimensionLinkChanged($link, \Platform\ManagementBook\Events\ManagementBookLinkChanged::LINKED, true);
+            });
+            \Platform\Organization\Models\OrganizationDimensionLink::deleted(function ($link) {
+                $this->onDimensionLinkChanged($link, \Platform\ManagementBook\Events\ManagementBookLinkChanged::UNLINKED, false);
+            });
+        }
+    }
+
+    protected function onDimensionLinkChanged($link, string $action, bool $enforce): void
+    {
+        if ($link->linkable_type !== \Platform\ManagementBook\Models\ManagementBook::MORPH_ALIAS) {
+            return;
+        }
+
+        try {
+            $book = \Platform\ManagementBook\Models\ManagementBook::withTrashed()->find($link->linkable_id);
+            if (! $book) {
+                return;
+            }
+            \Platform\Organization\Services\EntityDimensionBridge::flush();
+            if ($enforce) {
+                resolve(\Platform\ManagementBook\Services\ManagementBookService::class)->enforceSingleActive($book);
+            }
+            \Platform\ManagementBook\Events\ManagementBookLinkChanged::dispatch($book, $action);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ManagementBook: DimensionLink-Hook fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Tools für AI/Chat registrieren (Namen nach Plattform-Konvention: <modul>.<ressource-plural>.<VERB>,
+     * z. B. planner.projects.GET). Auto-Discovery gibt es zusätzlich, die explizite Registrierung folgt dem Planner.
+     */
+    protected function registerTools(): void
+    {
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+            $registry->register(new \Platform\ManagementBook\Tools\ListManagementBooksTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateManagementBookTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateManagementBookTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteManagementBookTool());
+        } catch (\Throwable $e) {
+            // ToolRegistry nicht verfügbar
+        }
     }
 
     /**
