@@ -42,7 +42,7 @@ return [
      */
     'navigation' => [
         'route' => 'management-book.dashboard',
-        'icon'  => 'heroicon-o-cube',
+        'icon'  => 'heroicon-o-book-open',
         'order' => 100, // Hohe Zahl = weiter unten in der Navigation
     ],
 
@@ -68,12 +68,12 @@ return [
      */
     'sidebar' => [
         [
-            'group' => 'Allgemein',
+            'group' => 'Management Books',
             'items' => [
                 [
-                    'label' => 'Dashboard',
+                    'label' => 'Übersicht',
                     'route' => 'management-book.dashboard',
-                    'icon'  => 'heroicon-o-home',
+                    'icon'  => 'heroicon-o-book-open',
                 ],
                 [
                     'label' => 'nx-Showcase',
@@ -82,5 +82,18 @@ return [
                 ],
             ],
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kaskade (Platzhalter)
+    |--------------------------------------------------------------------------
+    | Management Book -> Gremien -> Sitzungen -> Agenda/Unterlagen/Protokoll/Beschlüsse.
+    | Sobald das Gremium-Model existiert: FQCN hier eintragen. Es braucht eine Spalte
+    | `management_book_id` (FK auf management_books). ManagementBook::committees() nutzt
+    | dann diese Klasse; bis dahin liefert die Relation eine leere Menge.
+    */
+    'cascade' => [
+        'committee_model' => env('MANAGEMENT_BOOK_COMMITTEE_MODEL'),
     ],
 ];
