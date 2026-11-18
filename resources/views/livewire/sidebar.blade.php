@@ -19,16 +19,16 @@
 <div>
     {{-- Modul Header --}}
     <div x-show="!collapsed" class="p-3 text-sm italic text-[var(--nx-text)] uppercase border-b border-[color:var(--nx-line)] mb-2">
-        Strategy
+        Management Book
     </div>
 
     {{-- Abschnitt: Allgemein --}}
     <x-ui-sidebar-list label="Allgemein">
-        <x-ui-sidebar-item :href="route('strategy.dashboard')">
+        <x-ui-sidebar-item :href="route('management-book.dashboard')">
             @svg('heroicon-o-home', 'w-4 h-4 text-[var(--nx-text)]')
             <span class="ml-2 text-sm">Dashboard</span>
         </x-ui-sidebar-item>
-        <x-ui-sidebar-item :href="route('strategy.showcase')">
+        <x-ui-sidebar-item :href="route('management-book.showcase')">
             @svg('heroicon-o-swatch', 'w-4 h-4 text-[var(--nx-text)]')
             <span class="ml-2 text-sm">nx-Showcase</span>
         </x-ui-sidebar-item>
@@ -37,10 +37,10 @@
     {{-- Collapsed: Icons-only --}}
     <div x-show="collapsed" class="px-2 py-2 border-b border-[color:var(--nx-line)]">
         <div class="flex flex-col gap-2">
-            <a href="{{ route('strategy.dashboard') }}" wire:navigate class="flex items-center justify-center p-2 rounded-md text-[var(--nx-text)] hover:bg-[var(--nx-bg)]">
+            <a href="{{ route('management-book.dashboard') }}" wire:navigate class="flex items-center justify-center p-2 rounded-md text-[var(--nx-text)] hover:bg-[var(--nx-bg)]">
                 @svg('heroicon-o-home', 'w-5 h-5')
             </a>
-            <a href="{{ route('strategy.showcase') }}" wire:navigate class="flex items-center justify-center p-2 rounded-md text-[var(--nx-text)] hover:bg-[var(--nx-bg)]">
+            <a href="{{ route('management-book.showcase') }}" wire:navigate class="flex items-center justify-center p-2 rounded-md text-[var(--nx-text)] hover:bg-[var(--nx-bg)]">
                 @svg('heroicon-o-swatch', 'w-5 h-5')
             </a>
         </div>
@@ -50,7 +50,7 @@
     {{--
     <x-ui-sidebar-list label="Dynamische Liste">
         @foreach($entities as $entity)
-            <x-ui-sidebar-item :href="route('strategy.entities.show', ['entity' => $entity])">
+            <x-ui-sidebar-item :href="route('management-book.entities.show', ['entity' => $entity])">
                 @svg('heroicon-o-cube', 'w-4 h-4 text-[var(--nx-text)]')
                 <span class="ml-2 text-sm">{{ $entity->name }}</span>
             </x-ui-sidebar-item>

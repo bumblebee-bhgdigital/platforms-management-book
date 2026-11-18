@@ -1,4 +1,4 @@
-# LLM Guide für Strategy
+# LLM Guide für Management Book
 
 Diese Datei ist speziell für **Large Language Models (LLMs)** geschrieben, um das Verständnis und die Arbeit mit diesem Template zu erleichtern.
 
@@ -15,7 +15,7 @@ Dieses Template ist eine **minimale, vollständige Vorlage** für neue Platform-
 ### Service Provider Pattern
 
 ```
-StrategyServiceProvider
+ManagementBookServiceProvider
 ├── register()          # Config laden (Laravel Best Practice)
 └── boot()              # Modul-Registrierung & Setup
     ├── PlatformCore::registerModule()  # Modul registrieren
@@ -31,10 +31,10 @@ StrategyServiceProvider
 Route-Definition: Route::get('/', Dashboard::class)
     ↓
 ModuleRouter::group() fügt automatisch hinzu:
-    - Prefix: /strategy
+    - Prefix: /management-book
     - Middleware: web, auth, etc.
     ↓
-Finale Route: /strategy/
+Finale Route: /management-book/
 ```
 
 ### Livewire Component Pattern
@@ -44,31 +44,31 @@ Datei: src/Livewire/Dashboard.php
     ↓
 Auto-Registrierung via registerLivewireComponents()
     ↓
-Alias: strategy.dashboard
+Alias: management-book.dashboard
     ↓
-Verwendung: <livewire:strategy.dashboard />
+Verwendung: <livewire:management-book.dashboard />
 ```
 
 ## 🔄 Workflow für neues Modul
 
 ### Schritt 1: Kopieren
 ```bash
-cp -r strategy dein-modul-name
+cp -r management-book dein-modul-name
 ```
 
 ### Schritt 2: Suchen & Ersetzen
 
 **In ALLEN Dateien ersetzen:**
-- `Strategy` → `DeinModulName` (PascalCase, Namespace)
-- `strategy` → `dein-modul-name` (kebab-case, Routes, Config)
-- `strategy` → `dein_modul_name` (snake_case, Config-Keys)
+- `ManagementBook` → `DeinModulName` (PascalCase, Namespace)
+- `management-book` → `dein-modul-name` (kebab-case, Routes, Config)
+- `management_book` → `dein_modul_name` (snake_case, Config-Keys)
 
 **Wichtige Dateien:**
 - `composer.json` - Name, Namespace, Provider
-- `config/strategy.php` → umbenennen & anpassen
-- `src/StrategyServiceProvider.php` → umbenennen & anpassen
+- `config/management-book.php` → umbenennen & anpassen
+- `src/ManagementBookServiceProvider.php` → umbenennen & anpassen
 - Alle PHP-Dateien: Namespace ändern
-- Alle Blade-Dateien: `strategy::` → `dein-modul-name::`
+- Alle Blade-Dateien: `management-book::` → `dein-modul-name::`
 
 ### Schritt 3: Composer registrieren
 

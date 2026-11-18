@@ -16,7 +16,7 @@
  * - Implementiere Toggle-Funktionen
  */
 
-namespace Platform\Strategy\Livewire;
+namespace Platform\ManagementBook\Livewire;
 
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +33,7 @@ class Sidebar extends Component
         $user = auth()->user();
 
         if (!$user) {
-            return view('strategy::livewire.sidebar', []);
+            return view('management-book::livewire.sidebar', []);
         }
 
         /**
@@ -44,7 +44,7 @@ class Sidebar extends Component
          *     ->get();
          */
 
-        return view('strategy::livewire.sidebar', [
+        return view('management-book::livewire.sidebar', [
             // Füge hier deine Daten hinzu
         ]);
     }

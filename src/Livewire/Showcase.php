@@ -11,7 +11,7 @@
  * Voll DB-frei — alle Beispieldaten liegen inline in der View.
  */
 
-namespace Platform\Strategy\Livewire;
+namespace Platform\ManagementBook\Livewire;
 
 use Livewire\Component;
 
@@ -36,7 +36,7 @@ class Showcase extends Component
 
     public function render()
     {
-        return view('strategy::livewire.showcase')
+        return view('management-book::livewire.showcase')
             ->layout('platform::layouts.app');
     }
 }

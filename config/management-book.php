@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Strategy Configuration
+ * Management Book Configuration
  * 
  * Diese Config-Datei definiert die Konfiguration für das Modul.
  * 
  * WICHTIG FÜR LLMs:
- * - Ersetze "strategy" durch deinen Modul-Namen
- * - Ersetze "Strategy" durch deinen Modul-Namen (PascalCase)
+ * - Ersetze "management-book" durch deinen Modul-Namen
+ * - Ersetze "ManagementBook" durch deinen Modul-Namen (PascalCase)
  * - Alle Routes müssen mit dem Modul-Prefix beginnen
  * 
  * @see Platform\Core\PlatformCore::registerModule() für Details zur Modul-Registrierung
@@ -17,13 +17,13 @@ return [
     /**
      * Routing-Konfiguration
      * 
-     * 'mode': 'path' = /strategy/... (Standard)
-     *         'subdomain' = strategy.domain.com/... (Alternative)
+     * 'mode': 'path' = /management-book/... (Standard)
+     *         'subdomain' = management-book.domain.com/... (Alternative)
      * 'prefix': URL-Präfix für alle Routes
      */
     'routing' => [
-        'mode' => env('STRATEGY_MODE', 'path'),
-        'prefix' => 'strategy',
+        'mode' => env('MANAGEMENT_BOOK_MODE', 'path'),
+        'prefix' => 'management-book',
     ],
     
     /**
@@ -41,7 +41,7 @@ return [
      * 'order': Sortier-Reihenfolge (niedrigere Zahlen = weiter oben)
      */
     'navigation' => [
-        'route' => 'strategy.dashboard',
+        'route' => 'management-book.dashboard',
         'icon'  => 'heroicon-o-cube',
         'order' => 100, // Hohe Zahl = weiter unten in der Navigation
     ],
@@ -72,12 +72,12 @@ return [
             'items' => [
                 [
                     'label' => 'Dashboard',
-                    'route' => 'strategy.dashboard',
+                    'route' => 'management-book.dashboard',
                     'icon'  => 'heroicon-o-home',
                 ],
                 [
                     'label' => 'nx-Showcase',
-                    'route' => 'strategy.showcase',
+                    'route' => 'management-book.showcase',
                     'icon'  => 'heroicon-o-swatch',
                 ],
             ],

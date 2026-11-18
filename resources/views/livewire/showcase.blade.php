@@ -30,17 +30,17 @@
 
 <x-ui-page>
     <x-slot name="navbar">
-        <x-ui-page-navbar title="Strategy" />
+        <x-ui-page-navbar title="Management Book" />
     </x-slot>
 
     {{-- Actionbar: ≥2 Aktionen → EIN Dropdown (Konvention) --}}
     <x-slot name="actionbar">
         <x-ui-page-actionbar :breadcrumbs="[
-            ['label' => 'Strategy', 'href' => route('strategy.dashboard'), 'icon' => 'cube'],
+            ['label' => 'Management Book', 'href' => route('management-book.dashboard'), 'icon' => 'cube'],
             ['label' => 'nx-Showcase'],
         ]">
             <x-nx-dropdown label="Aktionen">
-                <x-nx-dropdown-item :href="route('strategy.dashboard')">
+                <x-nx-dropdown-item :href="route('management-book.dashboard')">
                     @svg('heroicon-o-home', 'w-4 h-4') Zum Dashboard
                 </x-nx-dropdown-item>
                 <x-nx-dropdown-item wire:click="$refresh">
@@ -73,7 +73,7 @@
                     <x-nx-button variant="danger">Danger</x-nx-button>
                     <x-nx-button variant="primary" size="md">Größe md</x-nx-button>
                     <x-nx-button variant="secondary" icon>@svg('heroicon-o-pencil', 'w-4 h-4')</x-nx-button>
-                    <x-nx-button variant="secondary" :href="route('strategy.dashboard')">Als Link</x-nx-button>
+                    <x-nx-button variant="secondary" :href="route('management-book.dashboard')">Als Link</x-nx-button>
                     <x-nx-button variant="primary" disabled>Disabled</x-nx-button>
                 </div>
             </x-nx-card>
@@ -172,7 +172,7 @@
                 @foreach($items as $it)
                     <x-nx-list-item :icon="$it['icon']" :title="$it['title']"
                                     :subtitle="$it['subtitle']" :meta="$it['meta']"
-                                    :href="route('strategy.showcase')" />
+                                    :href="route('management-book.showcase')" />
                 @endforeach
             </x-nx-card>
         </x-nx-section>

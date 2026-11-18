@@ -1,4 +1,4 @@
-# platforms-strategy
+# platforms-management-book
 
-Plattform-Modul für Strategie (Mission/Vision, Zukunftsbilder, Fokusräume, Hindernisse, Meilensteine).
-Gerüst aus `martin3r-me/platform-module-template`; noch keine Fachlogik. Doku zum Gerüst: `LLM_GUIDE.md`, `DESIGN.md`.
+Plattform-Modul: Management Book (Strategie, Analysen, Risiken, Gremien/Sitzungen).
+Gerüst aus `martin3r-me/platform-module-template`; noch keine Fachlogik. Namespace `Platform\ManagementBook`, Paket `martin3r/platform-management-book`. Doku zum Gerüst: `LLM_GUIDE.md`, `DESIGN.md`.

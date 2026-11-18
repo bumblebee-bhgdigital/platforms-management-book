@@ -22,7 +22,7 @@
 <x-ui-page>
     {{-- Navbar --}}
     <x-slot name="navbar">
-        <x-ui-page-navbar title="Strategy" />
+        <x-ui-page-navbar title="Management Book" />
     </x-slot>
 
     {{--
@@ -32,7 +32,7 @@
     --}}
     <x-slot name="actionbar">
         <x-ui-page-actionbar :breadcrumbs="[
-            ['label' => 'Strategy', 'icon' => 'cube'],
+            ['label' => 'Management Book', 'icon' => 'cube'],
         ]">
             <x-nx-button variant="primary" size="sm" wire:click="$refresh">
                 @svg('heroicon-o-plus', 'w-4 h-4')
@@ -79,7 +79,7 @@
             <x-nx-section icon="heroicon-o-list-bullet" title="Einträge" :hint="$entities->count()"
                           description="Register-artige Daten → Tabelle; Entitäten mit Identität → Liste">
                 <x-slot name="action">
-                    <x-nx-button variant="ghost" size="sm" :href="route('strategy.entities.index')">Alle</x-nx-button>
+                    <x-nx-button variant="ghost" size="sm" :href="route('management-book.entities.index')">Alle</x-nx-button>
                 </x-slot>
 
                 >> TABELLE = Register/Ledger: gleichförmige Datensätze, spaltenweise vergleichen/sortieren
@@ -92,7 +92,7 @@
                         </x-nx-table-header>
                         <x-nx-table-body>
                             @foreach($entities as $entity)
-                                <x-nx-table-row :href="route('strategy.entities.show', $entity)">
+                                <x-nx-table-row :href="route('management-book.entities.show', $entity)">
                                     <x-nx-table-cell>{{ $entity->name }}</x-nx-table-cell>
                                     <x-nx-table-cell align="right">{{ $entity->created_at->format('d.m.Y') }}</x-nx-table-cell>
                                     <x-nx-table-cell><x-nx-badge variant="success" dot>Aktiv</x-nx-badge></x-nx-table-cell>
@@ -105,7 +105,7 @@
                 >> LISTE = Katalog/Entitäten: Element mit Identität, erkennen & handeln statt vergleichen
                 <x-nx-card flush class="divide-y divide-[color:var(--nx-line)]">
                     @foreach($entities as $entity)
-                        <x-nx-list-item :href="route('strategy.entities.show', $entity)"
+                        <x-nx-list-item :href="route('management-book.entities.show', $entity)"
                                         icon="heroicon-o-cube"
                                         :title="$entity->name"
                                         subtitle="Beschreibung"

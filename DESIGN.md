@@ -1,4 +1,4 @@
-# Strategy — Design Brief
+# Management Book — Design Brief
 
 ## System: nx (plattformweit, Notion-inspiriert)
 
@@ -77,7 +77,7 @@ Radius `--nx-radius-sm|--nx-radius|--nx-radius-lg`.
 
 ## Wo sehe ich das in Aktion?
 
-- **`/strategy/showcase`** (`livewire/showcase.blade.php`) — **lebendes Verzeichnis: JEDE
+- **`/management-book/showcase`** (`livewire/showcase.blade.php`) — **lebendes Verzeichnis: JEDE
   `x-nx-*` Komponente einmal live gerendert**, gruppiert mit „wann nutzen"-Info. Zugleich die
   Copy-Paste-Referenz. Beim Hinzufügen einer Komponente hier einen Block ergänzen.
 - `resources/views/livewire/dashboard.blade.php` — Page-Shell + `x-nx-empty` + auskommentierter

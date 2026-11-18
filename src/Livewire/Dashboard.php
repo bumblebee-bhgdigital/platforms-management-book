@@ -17,7 +17,7 @@
  * - Füge Statistiken hinzu
  */
 
-namespace Platform\Strategy\Livewire;
+namespace Platform\ManagementBook\Livewire;
 
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
@@ -35,10 +35,10 @@ class Dashboard extends Component
         $this->dispatch('comms', [
             'model' => null,
             'modelId' => null,
-            'subject' => 'Strategy Dashboard',
+            'subject' => 'Management Book Dashboard',
             'description' => 'Übersicht des Template-Moduls',
-            'url' => route('strategy.dashboard'),
-            'source' => 'strategy.dashboard',
+            'url' => route('management-book.dashboard'),
+            'source' => 'management-book.dashboard',
             'recipients' => [],
             'meta' => [
                 'view_type' => 'dashboard',
@@ -74,7 +74,7 @@ class Dashboard extends Component
          * ];
          */
 
-        return view('strategy::livewire.dashboard', [
+        return view('management-book::livewire.dashboard', [
             'currentDate' => now()->format('d.m.Y'),
             'currentDay' => now()->format('l'),
             // Füge hier deine Daten hinzu

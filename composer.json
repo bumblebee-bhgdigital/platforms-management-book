@@ -1,6 +1,6 @@
 {
-    "name": "martin3r/platform-strategy",
-    "description": "Strategie-Modul: Mission/Vision, Zukunftsbilder, Fokusräume, Hindernisse, Meilensteine",
+    "name": "martin3r/platform-management-book",
+    "description": "Management Book (Strategie, Analysen, Risiken, Gremien/Sitzungen)",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -12,13 +12,13 @@
     "require": {},
     "autoload": {
         "psr-4": {
-            "Platform\\Strategy\\": "src/"
+            "Platform\\ManagementBook\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Platform\\Strategy\\StrategyServiceProvider"
+                "Platform\\ManagementBook\\ManagementBookServiceProvider"
             ]
         }
     },

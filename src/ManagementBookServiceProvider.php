@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Strategy Service Provider
+ * Management Book Service Provider
  * 
  * Dieser Service Provider ist das Herzstück jedes Platform-Moduls.
  * 
@@ -12,8 +12,8 @@
  * - Modul-Registrierung erfolgt in boot()
  * 
  * ANPASSUNGEN FÜR NEUES MODUL:
- * 1. Ersetze "Strategy" durch deinen Modul-Namen (PascalCase)
- * 2. Ersetze "strategy" durch deinen Modul-Namen (kebab-case)
+ * 1. Ersetze "ManagementBook" durch deinen Modul-Namen (PascalCase)
+ * 2. Ersetze "management-book" durch deinen Modul-Namen (kebab-case)
  * 3. Passe Namespaces an
  * 4. Füge Commands/Tools hinzu falls nötig
  * 
@@ -21,7 +21,7 @@
  * @see Platform\Core\Routing\ModuleRouter für Route-Registrierung
  */
 
-namespace Platform\Strategy;
+namespace Platform\ManagementBook;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -31,7 +31,7 @@ use Platform\Core\Routing\ModuleRouter;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
-class StrategyServiceProvider extends ServiceProvider
+class ManagementBookServiceProvider extends ServiceProvider
 {
     /**
      * Register Services
@@ -53,7 +53,7 @@ class StrategyServiceProvider extends ServiceProvider
          * 
          * WICHTIG: Muss in register() sein, nicht in boot()!
          */
-        $this->mergeConfigFrom(__DIR__.'/../config/strategy.php', 'strategy');
+        $this->mergeConfigFrom(__DIR__.'/../config/management-book.php', 'management-book');
         
         /**
          * Commands registrieren (optional)
@@ -62,7 +62,7 @@ class StrategyServiceProvider extends ServiceProvider
          * 
          * if ($this->app->runningInConsole()) {
          *     $this->commands([
-         *         \Platform\Strategy\Console\Commands\YourCommand::class,
+         *         \Platform\ManagementBook\Console\Commands\YourCommand::class,
          *     ]);
          * }
          */
@@ -92,8 +92,8 @@ class StrategyServiceProvider extends ServiceProvider
          * Nur wenn beide Bedingungen erfüllt, wird das Modul registriert.
          */
         if (
-            config()->has('strategy.routing') &&
-            config()->has('strategy.navigation') &&
+            config()->has('management-book.routing') &&
+            config()->has('management-book.navigation') &&
             PlatformCore::modulesTableExists()
         ) {
             /**
@@ -103,16 +103,16 @@ class StrategyServiceProvider extends ServiceProvider
              * - Der Modul-Registry (für Navigation, Sidebar)
              * - Der Datenbank (modules-Tabelle)
              * 
-             * Die Config wird automatisch aus config/strategy.php geladen.
+             * Die Config wird automatisch aus config/management-book.php geladen.
              */
             PlatformCore::registerModule([
-                'key'        => 'strategy', // Eindeutiger Schlüssel
-                'title'      => 'Strategy', // Anzeige-Name
+                'key'        => 'management-book', // Eindeutiger Schlüssel
+                'title'      => 'Management Book', // Anzeige-Name
                 'group'      => 'dev',
-                'routing'    => config('strategy.routing'),
-                'guard'      => config('strategy.guard'),
-                'navigation' => config('strategy.navigation'),
-                'sidebar'    => config('strategy.sidebar'),
+                'routing'    => config('management-book.routing'),
+                'guard'      => config('management-book.guard'),
+                'navigation' => config('management-book.navigation'),
+                'sidebar'    => config('management-book.sidebar'),
             ]);
         }
 
@@ -126,14 +126,14 @@ class StrategyServiceProvider extends ServiceProvider
          * - Middleware (web, auth, etc.)
          * - Domain-Handling (für Subdomain-Modus)
          */
-        if (PlatformCore::getModule('strategy')) {
+        if (PlatformCore::getModule('management-book')) {
             /**
              * Web-Routes (authentifiziert)
              * 
              * Standard: requireAuth = true
              * Für öffentliche Routes: requireAuth = false
              */
-            ModuleRouter::group('strategy', function () {
+            ModuleRouter::group('management-book', function () {
                 $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
             });
             
@@ -142,7 +142,7 @@ class StrategyServiceProvider extends ServiceProvider
              * 
              * Falls dein Modul API-Endpoints hat:
              * 
-             * ModuleRouter::apiGroup('strategy', function () {
+             * ModuleRouter::apiGroup('management-book', function () {
              *     $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
              * });
              */
@@ -159,26 +159,26 @@ class StrategyServiceProvider extends ServiceProvider
         /**
          * SCHRITT 4: Config veröffentlichen
          * 
-         * Ermöglicht es, die Config in config/strategy.php zu überschreiben.
+         * Ermöglicht es, die Config in config/management-book.php zu überschreiben.
          * 
          * Publizieren mit:
-         * php artisan vendor:publish --tag=config --provider="Platform\Strategy\StrategyServiceProvider"
+         * php artisan vendor:publish --tag=config --provider="Platform\ManagementBook\ManagementBookServiceProvider"
          * 
          * WICHTIG: mergeConfigFrom funktioniert auch OHNE Publizierung!
          */
         $this->publishes([
-            __DIR__.'/../config/strategy.php' => config_path('strategy.php'),
+            __DIR__.'/../config/management-book.php' => config_path('management-book.php'),
         ], 'config');
 
         /**
          * SCHRITT 5: Views laden
          * 
-         * Registriert Views unter dem Namespace 'strategy'
+         * Registriert Views unter dem Namespace 'management-book'
          * 
          * Verwendung in Views:
-         * @return view('strategy::livewire.dashboard')
+         * @return view('management-book::livewire.dashboard')
          */
-        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'strategy');
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'management-book');
         
         /**
          * SCHRITT 6: Livewire Components registrieren
@@ -187,10 +187,10 @@ class StrategyServiceProvider extends ServiceProvider
          * 
          * Pattern:
          * - Datei: src/Livewire/Dashboard.php
-         * - Alias: strategy.dashboard
+         * - Alias: management-book.dashboard
          * 
          * Verwendung:
-         * <livewire:strategy.dashboard />
+         * <livewire:management-book.dashboard />
          */
         $this->registerLivewireComponents();
         
@@ -211,20 +211,20 @@ class StrategyServiceProvider extends ServiceProvider
      * 
      * NAMING CONVENTION:
      * - Datei: src/Livewire/Dashboard.php
-     * - Namespace: Platform\Strategy\Livewire\Dashboard
-     * - Alias: strategy.dashboard
+     * - Namespace: Platform\ManagementBook\Livewire\Dashboard
+     * - Alias: management-book.dashboard
      * 
      * - Datei: src/Livewire/Entity/Index.php
-     * - Namespace: Platform\Strategy\Livewire\Entity\Index
-     * - Alias: strategy.entity.index
+     * - Namespace: Platform\ManagementBook\Livewire\Entity\Index
+     * - Alias: management-book.entity.index
      * 
      * @return void
      */
     protected function registerLivewireComponents(): void
     {
         $basePath = __DIR__ . '/Livewire';
-        $baseNamespace = 'Platform\\Strategy\\Livewire';
-        $prefix = 'strategy';
+        $baseNamespace = 'Platform\\ManagementBook\\Livewire';
+        $prefix = 'management-book';
 
         // Prüfe ob Verzeichnis existiert
         if (!is_dir($basePath)) {
