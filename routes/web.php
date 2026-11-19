@@ -19,6 +19,7 @@
  */
 
 use Platform\ManagementBook\Livewire\Dashboard;
+use Platform\ManagementBook\Livewire\Show;
 use Platform\ManagementBook\Livewire\Showcase;
 
 /**
@@ -27,6 +28,11 @@ use Platform\ManagementBook\Livewire\Showcase;
  * Hauptübersicht des Moduls
  */
 Route::get('/', Dashboard::class)->name('management-book.dashboard');
+
+// Übersicht aller Books (Alias auf dieselbe Komponente) und Detailseite.
+// {managementBook} = Route-Model-Binding auf die ID (wie {plannerProject} im Planner).
+Route::get('/books', Dashboard::class)->name('management-book.books.index');
+Route::get('/books/{managementBook}', Show::class)->name('management-book.books.show');
 
 /**
  * nx-Showcase Route
