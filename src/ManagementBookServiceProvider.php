@@ -232,6 +232,10 @@ class ManagementBookServiceProvider extends ServiceProvider
             \Platform\ManagementBook\Models\ManagementBookCommittee::class,
             \Platform\ManagementBook\Policies\ManagementBookCommitteePolicy::class
         );
+        Gate::policy(
+            \Platform\ManagementBook\Models\ManagementBookMeeting::class,
+            \Platform\ManagementBook\Policies\ManagementBookMeetingPolicy::class
+        );
     }
 
     /**
@@ -297,6 +301,10 @@ class ManagementBookServiceProvider extends ServiceProvider
             $registry->register(new \Platform\ManagementBook\Tools\CreateCommitteeTool());
             $registry->register(new \Platform\ManagementBook\Tools\UpdateCommitteeTool());
             $registry->register(new \Platform\ManagementBook\Tools\DeleteCommitteeTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListMeetingsTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateMeetingTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateMeetingTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteMeetingTool());
         } catch (\Throwable $e) {
             // ToolRegistry nicht verfügbar
         }
