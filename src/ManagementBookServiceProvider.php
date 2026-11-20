@@ -228,6 +228,10 @@ class ManagementBookServiceProvider extends ServiceProvider
             \Platform\ManagementBook\Models\ManagementBook::class,
             \Platform\ManagementBook\Policies\ManagementBookPolicy::class
         );
+        Gate::policy(
+            \Platform\ManagementBook\Models\ManagementBookCommittee::class,
+            \Platform\ManagementBook\Policies\ManagementBookCommitteePolicy::class
+        );
     }
 
     /**
@@ -289,6 +293,10 @@ class ManagementBookServiceProvider extends ServiceProvider
             $registry->register(new \Platform\ManagementBook\Tools\CreateManagementBookTool());
             $registry->register(new \Platform\ManagementBook\Tools\UpdateManagementBookTool());
             $registry->register(new \Platform\ManagementBook\Tools\DeleteManagementBookTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListCommitteesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateCommitteeTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateCommitteeTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteCommitteeTool());
         } catch (\Throwable $e) {
             // ToolRegistry nicht verfügbar
         }
