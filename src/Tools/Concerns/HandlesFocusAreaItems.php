@@ -5,6 +5,7 @@ namespace Platform\ManagementBook\Tools\Concerns;
 use Illuminate\Support\Carbon;
 use Platform\Core\Contracts\ToolContext;
 use Platform\Core\Contracts\ToolResult;
+use Platform\ManagementBook\Enums\MilestoneStatus;
 
 /**
  * CRUD-Logik für die drei Spalten eines Fokusraums (Zielbilder = vision_image, Hindernisse = obstacle,
@@ -22,7 +23,7 @@ trait HandlesFocusAreaItems
         return match ($kind) {
             'vision_image' => ['label' => 'Zielbild', 'plural' => 'vision_images', 'fields' => $base],
             'obstacle' => ['label' => 'Hindernis', 'plural' => 'obstacles', 'fields' => $base],
-            'milestone' => ['label' => 'Meilenstein', 'plural' => 'milestones', 'fields' => array_merge($base, ['target_date', 'target_year', 'target_quarter'])],
+            'milestone' => ['label' => 'Meilenstein', 'plural' => 'milestones', 'fields' => array_merge($base, ['target_date', 'target_year', 'target_quarter', 'status'])],
         };
     }
 
@@ -40,6 +41,7 @@ trait HandlesFocusAreaItems
                 'target_date' => ['type' => 'string', 'description' => 'Optional: exaktes Datum YYYY-MM-DD.'],
                 'target_year' => ['type' => 'integer', 'description' => 'Zieljahr für die Positionierung auf der Transformation Map.'],
                 'target_quarter' => ['type' => 'integer', 'description' => 'Zielquartal 1-4.'],
+                'status' => ['type' => 'string', 'enum' => MilestoneStatus::values(), 'description' => 'Status des Waypoints: planned (geplant, Default), in_progress, reached (erreicht; setzt reached_at), missed (verfehlt), cancelled (verworfen).'],
             ];
         }
 
@@ -61,6 +63,7 @@ trait HandlesFocusAreaItems
             $props += [
                 'target_year' => ['type' => 'integer', 'description' => 'Optional: Zieljahr filtern.'],
                 'target_quarter' => ['type' => 'integer', 'description' => 'Optional: Zielquartal (1-4) filtern.'],
+                'status' => ['type' => 'string', 'enum' => MilestoneStatus::values(), 'description' => 'Optional: Status filtern.'],
             ];
         }
 
@@ -74,6 +77,9 @@ trait HandlesFocusAreaItems
         }
         if (isset($arguments['target_quarter']) && ((int) $arguments['target_quarter'] < 1 || (int) $arguments['target_quarter'] > 4)) {
             return 'target_quarter muss zwischen 1 und 4 liegen.';
+        }
+        if (isset($arguments['status']) && ! MilestoneStatus::tryFrom((string) $arguments['status'])) {
+            return 'status muss einer von ' . implode(', ', MilestoneStatus::values()) . ' sein.';
         }
         if (isset($arguments['target_year']) && ((int) $arguments['target_year'] < 1900 || (int) $arguments['target_year'] > 2200)) {
             return 'target_year ist ungültig.';
@@ -123,6 +129,12 @@ trait HandlesFocusAreaItems
                     if (! empty($arguments[$col])) {
                         $query->where($col, (int) $arguments[$col]);
                     }
+                }
+                if (! empty($arguments['status'])) {
+                    if (! MilestoneStatus::tryFrom((string) $arguments['status'])) {
+                        return ToolResult::error('VALIDATION_ERROR', 'status muss einer von ' . implode(', ', MilestoneStatus::values()) . ' sein.');
+                    }
+                    $query->where('status', $arguments['status']);
                 }
             }
             if (! empty($arguments['search'])) {

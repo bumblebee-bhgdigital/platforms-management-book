@@ -19,7 +19,7 @@ class UpdateMilestoneTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /management-book/milestones/{id} - Ändert ein Element der Spalte „Meilenstein“ (auch in einen anderen Fokusraum desselben Books verschieben). Pflicht: id. Nicht übergebene Felder bleiben unverändert. Meilensteine sind Waypoints der Transformation Map: target_year + target_quarter (1-4), optional target_date.';
+        return 'PUT /management-book/milestones/{id} - Ändert ein Element der Spalte „Meilenstein“ (auch in einen anderen Fokusraum desselben Books verschieben). Pflicht: id. Nicht übergebene Felder bleiben unverändert. Meilensteine sind Waypoints der Transformation Map: target_year + target_quarter (1-4), optional target_date; status (planned|in_progress|reached|missed|cancelled, Default planned). Gesamtbild über die Zeit: management-book.transformation_map.GET.';
     }
 
     public function getSchema(): array

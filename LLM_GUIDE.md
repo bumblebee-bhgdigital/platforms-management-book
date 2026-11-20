@@ -337,3 +337,9 @@ Tabellen `management_book_strategic_documents`, `_forecasts`, `_forecast_version
 Einstieg für Agenten: `management-book.strategy.GET {management_book_id}` liefert Mission/Vision, Forecasts, Fokusräume (je mit Zielbildern, Hindernissen, Meilensteinen und den drei Leitfragen) und die Transformation Map (Meilensteine nach Jahr/Quartal). Schreiben: `strategy.PUT` (Mission/Vision, versioniert), `forecasts.*` + `forecasts.versions.POST`, `focus_areas.*`, `vision_images.*`, `obstacles.*`, `milestones.*`.
 
 Konventionen: Kinder eines Fokusraums leiten `management_book_id` beim Speichern aus dem Fokusraum ab; `forecast_id` am Fokusraum ist ein optionaler Soft-Link; Löschen ist Soft-Delete ohne Kaskade (wie in der Organization); mehr als 7 Fokusräume je Book liefert nur einen Hinweis. Tool-Logik liegt in den Traits `Tools/Concerns/HandlesStrategy`, `HandlesFocusAreas`, `HandlesFocusAreaItems`, `HandlesForecasts`.
+
+### Transformation Map und Milestone-Contributions (#1053, Teil 2)
+
+`management_book_milestones` hat zusätzlich `status` (Enum `MilestoneStatus`) und `reached_at`; `management_book_milestone_contributions` (Model `ManagementBookMilestoneContribution`) verbindet Meilensteine polymorph mit Objekten anderer Module. Brücke zum OKR-Modul: `linkable_type` ist ein Morph-Alias (`okr_objective`, `okr_key_result` – vom OKR-Modul selbst registriert, hier ohne Klassenabhängigkeit aufgelöst, bevorzugt über die `ObjectTypeRegistry` der Organization, sonst über die Morph-Map). Kein FK auf Fremdmodule; Idempotenz über (milestone_id, linkable_type, linkable_id), `weight` 1–100 optional. Die Org-Tabelle `organization_milestone_contributions` bleibt unberührt; dasselbe Objective kann parallel auf Org- und Book-Meilensteine einzahlen.
+
+Tools: `transformation_map.GET/PUT`, `milestone_contributions.GET/POST/DELETE`; `milestones.*` akzeptieren zusätzlich `status`. Helfer: `Tools/Concerns/HandlesTransformationMap`, `HandlesMilestoneContributions`.

@@ -164,6 +164,9 @@ trait HandlesStrategy
                 'target_date' => $m->target_date?->toDateString(),
                 'target_year' => $m->target_year !== null ? (int) $m->target_year : null,
                 'target_quarter' => $m->target_quarter !== null ? (int) $m->target_quarter : null,
+                'status' => $m->status?->value,
+                'status_label' => $m->status?->label(),
+                'reached_at' => $m->reached_at?->toDateString(),
             ];
         }
         $a['created_by'] = $m->created_by;

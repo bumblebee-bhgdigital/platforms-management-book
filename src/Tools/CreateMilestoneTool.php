@@ -19,7 +19,7 @@ class CreateMilestoneTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /management-book/milestones - Legt ein Element der Spalte „Meilenstein“ in einem Fokusraum an. Pflicht: focus_area_id, title. Optional: description, central_question, order. Meilensteine sind Waypoints der Transformation Map: target_year + target_quarter (1-4), optional target_date.';
+        return 'POST /management-book/milestones - Legt ein Element der Spalte „Meilenstein“ in einem Fokusraum an. Pflicht: focus_area_id, title. Optional: description, central_question, order. Meilensteine sind Waypoints der Transformation Map: target_year + target_quarter (1-4), optional target_date; status (planned|in_progress|reached|missed|cancelled, Default planned). Gesamtbild über die Zeit: management-book.transformation_map.GET.';
     }
 
     public function getSchema(): array
