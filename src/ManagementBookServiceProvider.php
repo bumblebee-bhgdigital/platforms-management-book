@@ -236,6 +236,13 @@ class ManagementBookServiceProvider extends ServiceProvider
             \Platform\ManagementBook\Models\ManagementBookMeeting::class,
             \Platform\ManagementBook\Policies\ManagementBookMeetingPolicy::class
         );
+        // Strategie-Entitäten erben die Rechte des Management Books
+        foreach (['StrategicDocument', 'Forecast', 'FocusArea', 'VisionImage', 'Obstacle', 'Milestone'] as $name) {
+            Gate::policy(
+                'Platform\\ManagementBook\\Models\\ManagementBook' . $name,
+                'Platform\\ManagementBook\\Policies\\ManagementBook' . $name . 'Policy'
+            );
+        }
     }
 
     /**
@@ -305,6 +312,29 @@ class ManagementBookServiceProvider extends ServiceProvider
             $registry->register(new \Platform\ManagementBook\Tools\CreateMeetingTool());
             $registry->register(new \Platform\ManagementBook\Tools\UpdateMeetingTool());
             $registry->register(new \Platform\ManagementBook\Tools\DeleteMeetingTool());
+            $registry->register(new \Platform\ManagementBook\Tools\GetBookStrategyTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateBookStrategyTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListForecastsTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateForecastTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateForecastTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteForecastTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateForecastVersionTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListFocusAreasTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateFocusAreaTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateFocusAreaTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteFocusAreaTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListVisionImagesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateVisionImageTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateVisionImageTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteVisionImageTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListObstaclesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateObstacleTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateObstacleTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteObstacleTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListMilestonesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateMilestoneTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateMilestoneTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteMilestoneTool());
         } catch (\Throwable $e) {
             // ToolRegistry nicht verfügbar
         }

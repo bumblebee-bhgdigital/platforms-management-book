@@ -115,6 +115,28 @@ class ManagementBook extends Model implements HasDisplayName
         return $this->hasMany(static::class, 'id', 'id')->whereRaw('1 = 0');
     }
 
+    // ── Strategie (Mission/Vision, Forecasts, Fokusräume, Meilensteine) ──
+
+    public function strategicDocuments(): HasMany
+    {
+        return $this->hasMany(ManagementBookStrategicDocument::class, 'management_book_id');
+    }
+
+    public function forecasts(): HasMany
+    {
+        return $this->hasMany(ManagementBookForecast::class, 'management_book_id')->orderBy('target_date');
+    }
+
+    public function focusAreas(): HasMany
+    {
+        return $this->hasMany(ManagementBookFocusArea::class, 'management_book_id')->orderBy('order');
+    }
+
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(ManagementBookMilestone::class, 'management_book_id');
+    }
+
     /**
      * Relationspfade der Kinder (Zeit-Kaskade, vgl. HasChildContextRelations im Planner).
      * Noch keine Kinder – Gremien/Sitzungen ergänzen 'committees', 'committees.meetings'.
