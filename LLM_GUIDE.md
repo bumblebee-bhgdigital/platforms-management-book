@@ -343,3 +343,7 @@ Konventionen: Kinder eines Fokusraums leiten `management_book_id` beim Speichern
 `management_book_milestones` hat zusätzlich `status` (Enum `MilestoneStatus`) und `reached_at`; `management_book_milestone_contributions` (Model `ManagementBookMilestoneContribution`) verbindet Meilensteine polymorph mit Objekten anderer Module. Brücke zum OKR-Modul: `linkable_type` ist ein Morph-Alias (`okr_objective`, `okr_key_result` – vom OKR-Modul selbst registriert, hier ohne Klassenabhängigkeit aufgelöst, bevorzugt über die `ObjectTypeRegistry` der Organization, sonst über die Morph-Map). Kein FK auf Fremdmodule; Idempotenz über (milestone_id, linkable_type, linkable_id), `weight` 1–100 optional. Die Org-Tabelle `organization_milestone_contributions` bleibt unberührt; dasselbe Objective kann parallel auf Org- und Book-Meilensteine einzahlen.
 
 Tools: `transformation_map.GET/PUT`, `milestone_contributions.GET/POST/DELETE`; `milestones.*` akzeptieren zusätzlich `status`. Helfer: `Tools/Concerns/HandlesTransformationMap`, `HandlesMilestoneContributions`.
+
+## Kinder einer Sitzung (#1052)
+
+Tools `management-book.agenda_items|documents|minutes|decisions|meeting_attendees.GET/POST/PUT/DELETE`; Details siehe README.md. Gemeinsame Logik: `src/Tools/Concerns/HandlesMeetingChildren.php` (Kind-Konfiguration je Art, dünne Tool-Klassen). Neue Kind-Art = Eintrag in `childConfig()`/`childFieldSchema()` + 4 Tool-Klassen + Policy-Eintrag im Provider.

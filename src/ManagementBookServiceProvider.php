@@ -236,6 +236,13 @@ class ManagementBookServiceProvider extends ServiceProvider
             \Platform\ManagementBook\Models\ManagementBookMeeting::class,
             \Platform\ManagementBook\Policies\ManagementBookMeetingPolicy::class
         );
+        // Sitzungs-Kinder (#1052) erben die Rechte der Sitzung (ManagementBookMeetingChildPolicy)
+        foreach (['AgendaItem', 'Document', 'Minutes', 'Decision', 'MeetingAttendee'] as $name) {
+            Gate::policy(
+                'Platform\\ManagementBook\\Models\\ManagementBook' . $name,
+                'Platform\\ManagementBook\\Policies\\ManagementBook' . $name . 'Policy'
+            );
+        }
         // Strategie-Entitäten erben die Rechte des Management Books
         foreach (['StrategicDocument', 'Forecast', 'FocusArea', 'VisionImage', 'Obstacle', 'Milestone', 'MilestoneContribution'] as $name) {
             Gate::policy(
@@ -312,6 +319,26 @@ class ManagementBookServiceProvider extends ServiceProvider
             $registry->register(new \Platform\ManagementBook\Tools\CreateMeetingTool());
             $registry->register(new \Platform\ManagementBook\Tools\UpdateMeetingTool());
             $registry->register(new \Platform\ManagementBook\Tools\DeleteMeetingTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListAgendaItemsTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateAgendaItemTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateAgendaItemTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteAgendaItemTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListDocumentsTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateDocumentTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateDocumentTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteDocumentTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListMinutesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateMinutesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateMinutesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteMinutesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListDecisionsTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateDecisionTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateDecisionTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteDecisionTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListMeetingAttendeesTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateMeetingAttendeeTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateMeetingAttendeeTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteMeetingAttendeeTool());
             $registry->register(new \Platform\ManagementBook\Tools\GetBookStrategyTool());
             $registry->register(new \Platform\ManagementBook\Tools\UpdateBookStrategyTool());
             $registry->register(new \Platform\ManagementBook\Tools\ListForecastsTool());

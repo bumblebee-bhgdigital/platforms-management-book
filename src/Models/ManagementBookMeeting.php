@@ -5,6 +5,7 @@ namespace Platform\ManagementBook\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Platform\Core\Contracts\HasDisplayName;
 use Platform\ManagementBook\Enums\MeetingStatus;
@@ -71,6 +72,34 @@ class ManagementBookMeeting extends Model implements HasDisplayName
     public function creator(): BelongsTo
     {
         return $this->belongsTo(\Platform\Core\Models\User::class, 'created_by');
+    }
+
+    // Kinder (#1052). Soft-Delete der Sitzung kaskadiert nicht (wie Gremium -> Sitzung): die Kinder sind über die
+    // Policy an die Sitzung gebunden und bei gelöschter Sitzung nicht mehr les-/schreibbar. DB-FK: cascadeOnDelete.
+
+    public function agendaItems(): HasMany
+    {
+        return $this->hasMany(ManagementBookAgendaItem::class, 'meeting_id')->orderBy('position')->orderBy('id');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ManagementBookDocument::class, 'meeting_id');
+    }
+
+    public function minutes(): HasMany
+    {
+        return $this->hasMany(ManagementBookMinutes::class, 'meeting_id');
+    }
+
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(ManagementBookDecision::class, 'meeting_id');
+    }
+
+    public function attendees(): HasMany
+    {
+        return $this->hasMany(ManagementBookMeetingAttendee::class, 'meeting_id');
     }
 
     public function getDisplayName(): ?string
