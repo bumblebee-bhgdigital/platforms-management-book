@@ -17,7 +17,7 @@ class ListManagementBooksTool implements ToolContract, ToolMetadataContract
 
     public function getName(): string
     {
-        return 'management_books.GET';
+        return 'management-book.books.GET';
     }
 
     public function getDescription(): string

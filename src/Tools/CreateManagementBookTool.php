@@ -18,7 +18,7 @@ class CreateManagementBookTool implements ToolContract, ToolMetadataContract
 
     public function getName(): string
     {
-        return 'management_books.POST';
+        return 'management-book.books.POST';
     }
 
     public function getDescription(): string

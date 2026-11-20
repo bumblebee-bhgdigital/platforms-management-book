@@ -16,13 +16,13 @@ class DeleteManagementBookTool implements ToolContract, ToolMetadataContract
 
     public function getName(): string
     {
-        return 'management_books.DELETE';
+        return 'management-book.books.DELETE';
     }
 
     public function getDescription(): string
     {
         return 'DELETE /management-books/{id} - Löscht ein Management Book (Soft-Delete, wiederherstellbar). Pflicht: id. '
-            . 'Zum Beenden eines Books ohne Löschen stattdessen management_books.PUT mit status=archived nutzen (Historie bleibt sichtbar). '
+            . 'Zum Beenden eines Books ohne Löschen stattdessen management-book.books.PUT mit status=archived nutzen (Historie bleibt sichtbar). '
             . 'Ein gelöschtes aktives Book gibt den Knoten frei (es gibt dann kein aktives Book mehr am Knoten).';
     }
 
