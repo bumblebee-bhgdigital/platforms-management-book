@@ -329,3 +329,11 @@ Nach dem Erstellen des Basis-Moduls:
 3. **Dokumentation** - Kommentiere wichtige Stellen
 4. **Beispiele** - Sieh dir HCM/Planner für komplexere Beispiele an
 5. **Testen** - Teste nach jeder Änderung
+
+## Strategie im Management Book (#1053)
+
+Tabellen `management_book_strategic_documents`, `_forecasts`, `_forecast_versions`, `_focus_areas`, `_vision_images`, `_obstacles`, `_milestones` (alle mit `management_book_id`, `team_id`, `uuid`, Soft-Delete). Models `ManagementBook{StrategicDocument,Forecast,ForecastVersion,FocusArea,VisionImage,Obstacle,Milestone}`; Policies erben die Rechte des Books (`ManagementBookChildPolicy`).
+
+Einstieg für Agenten: `management-book.strategy.GET {management_book_id}` liefert Mission/Vision, Forecasts, Fokusräume (je mit Zielbildern, Hindernissen, Meilensteinen und den drei Leitfragen) und die Transformation Map (Meilensteine nach Jahr/Quartal). Schreiben: `strategy.PUT` (Mission/Vision, versioniert), `forecasts.*` + `forecasts.versions.POST`, `focus_areas.*`, `vision_images.*`, `obstacles.*`, `milestones.*`.
+
+Konventionen: Kinder eines Fokusraums leiten `management_book_id` beim Speichern aus dem Fokusraum ab; `forecast_id` am Fokusraum ist ein optionaler Soft-Link; Löschen ist Soft-Delete ohne Kaskade (wie in der Organization); mehr als 7 Fokusräume je Book liefert nur einen Hinweis. Tool-Logik liegt in den Traits `Tools/Concerns/HandlesStrategy`, `HandlesFocusAreas`, `HandlesFocusAreaItems`, `HandlesForecasts`.
