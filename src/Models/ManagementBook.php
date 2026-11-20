@@ -99,11 +99,9 @@ class ManagementBook extends Model implements HasDisplayName
     /**
      * KASKADE (Platzhalter): Management Book -> Gremien -> Sitzungen -> Agenda/Unterlagen/Protokoll/Beschlüsse.
      *
-     * Gremien sind eigene Entitäten in einem Folge-Board und hängen per FK `management_book_id`
-     * (Konvention) an diesem Book. Das Gremium-Model existiert noch nicht; sobald es da ist, wird
-     * seine Klasse unter `management-book.cascade.committee_model` konfiguriert (oder dieser
-     * Platzhalter ersetzt). Bis dahin liefert die Relation eine garantiert leere Menge, damit
-     * Aufrufer (Detailseite, Tools) schon heute `$book->committees` nutzen können.
+     * Gremien (ManagementBookCommittee) hängen per FK `management_book_id` an diesem Book. Die Klasse
+     * ist unter `management-book.cascade.committee_model` konfiguriert; fehlt sie, liefert die
+     * Relation eine garantiert leere Menge.
      */
     public function committees(): HasMany
     {

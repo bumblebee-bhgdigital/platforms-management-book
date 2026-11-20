@@ -94,6 +94,6 @@ return [
     | dann diese Klasse; bis dahin liefert die Relation eine leere Menge.
     */
     'cascade' => [
-        'committee_model' => env('MANAGEMENT_BOOK_COMMITTEE_MODEL'),
+        'committee_model' => env('MANAGEMENT_BOOK_COMMITTEE_MODEL', \Platform\ManagementBook\Models\ManagementBookCommittee::class),
     ],
 ];
