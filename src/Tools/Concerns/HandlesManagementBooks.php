@@ -10,7 +10,7 @@ use Platform\ManagementBook\Models\ManagementBook;
 use Platform\ManagementBook\Services\ManagementBookService;
 use Platform\Organization\Models\OrganizationEntity;
 
-/** Gemeinsame Helfer der management_books.*-Tools (Team-Auflösung, Serialisierung, Knoten-Schreibrecht). */
+/** Gemeinsame Helfer der management-book.books.*-Tools (Team-Auflösung, Serialisierung, Knoten-Schreibrecht). */
 trait HandlesManagementBooks
 {
     /** @return array{team: Team|null, error: ToolResult|null} */

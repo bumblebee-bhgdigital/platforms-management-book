@@ -18,7 +18,7 @@ class UpdateManagementBookTool implements ToolContract, ToolMetadataContract
 
     public function getName(): string
     {
-        return 'management_books.PUT';
+        return 'management-book.books.PUT';
     }
 
     public function getDescription(): string
