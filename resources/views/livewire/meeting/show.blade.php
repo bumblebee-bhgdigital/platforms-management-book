@@ -235,8 +235,9 @@
                                         @svg($a->attended ? 'heroicon-s-check-circle' : 'heroicon-o-minus-circle', 'w-5 h-5')
                                     </button>
                                     <span class="min-w-0 flex-1 truncate text-sm">
-                                        {{ $a->user?->name ?? $a->agent?->name ?? '–' }}
+                                        {{ $a->displayName() }}
                                         @if($a->agent_id)<span class="text-xs text-[color:var(--nx-faint)]">Agent</span>@endif
+                                        @if($a->organization_entity_id && ! $a->user_id && ! $a->agent_id)<span class="text-xs text-[color:var(--nx-faint)]">ohne Konto</span>@endif
                                     </span>
                                     @if($a->role)<span class="text-xs text-[color:var(--nx-muted)]">{{ \Platform\ManagementBook\Enums\CommitteeMemberRole::tryFrom($a->role)?->label() ?? $a->role }}</span>@endif
                                     @if($canEdit)
@@ -246,7 +247,7 @@
                             @empty
                                 <p class="m-0 px-4 py-4 text-sm leading-relaxed text-[color:var(--nx-muted)]">Noch keine Teilnehmer. Anwesenheit hakst du nach der Sitzung ab.</p>
                             @endforelse
-                            @if($canEdit && $committee && $committee->members->isNotEmpty())
+                            @if($canEdit && $committee && $committeeHasMembers)
                                 <div class="border-t border-[color:var(--nx-line)] px-4 py-2.5">
                                     <x-nx-button variant="ghost" size="sm" wire:click="adoptMembers">@svg('heroicon-o-arrow-down-tray', 'w-4 h-4') Gremiumsmitglieder übernehmen</x-nx-button>
                                 </div>
@@ -283,6 +284,23 @@
                             @endforelse
                         </x-nx-card>
                     </section>
+
+                    {{-- Zeit: Buchung auf die Sitzung rollt zum Gremien-Knoten in der Organisation hoch --}}
+                    @if($timeAvailable)
+                        <section class="space-y-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <h2 class="m-0 text-sm font-semibold text-[color:var(--nx-text)]">Zeit</h2>
+                                <x-nx-button variant="ghost" size="sm" wire:click="openTime">@svg('heroicon-o-clock', 'w-4 h-4') Zeit buchen</x-nx-button>
+                            </div>
+                            <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                @if($time['total'] > 0)
+                                    {{ \Platform\Organization\Models\OrganizationTimeEntry::formatMinutes($time['total']) }} gebucht von {{ $time['people'] }} {{ $time['people'] === 1 ? 'Person' : 'Personen' }}@if($time['mine'] > 0), davon {{ \Platform\Organization\Models\OrganizationTimeEntry::formatMinutes($time['mine']) }} von dir @endif.
+                                @else
+                                    Noch keine Zeit gebucht. Vorbereitung, Sitzung und Nachbereitung zählen zum Gremium – und damit zur Einheit in der Organisation.
+                                @endif
+                            </p>
+                        </section>
+                    @endif
 
                     {{-- Haltung / Rolle des Gremiums (aus dem Format) --}}
                     @if($stance)

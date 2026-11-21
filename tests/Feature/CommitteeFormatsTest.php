@@ -153,7 +153,7 @@ class CommitteeFormatsTest extends TestCase
 
         // Gremium-Seite zeigt Format und Verortung
         $this->get(route('management-book.committees.show', $strategy))->assertOk()
-            ->assertSee('Format: Richtung')->assertSee('Richtungsklarheit')->assertSee('Verortung')
+            ->assertSee('Format: Richtung')->assertSee('Richtungsklarheit')
             ->assertDontSee('Ist die Organisation danach handlungsfähiger');
         $this->get(route('management-book.books.show', $s['book']) . '?tab=committees')->assertOk()
             ->assertSee('Format Regulation')->assertSee('Format Richtung');
@@ -282,6 +282,6 @@ class CommitteeFormatsTest extends TestCase
 
         $r = (new \Platform\ManagementBook\Tools\UpdateCommitteeTool())->execute(['id' => $s['committee']->id, 'organization_entity_id' => 0], $ctx);
         $this->assertTrue($r->success, json_encode($r));
-        $this->assertSame([], $service->nodeIds($s['committee']));
+        $this->assertSame([], $service->nodeIds($s['committee']->fresh()));
     }
 }

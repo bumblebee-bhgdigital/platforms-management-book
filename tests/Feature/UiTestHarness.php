@@ -39,6 +39,8 @@ trait UiTestHarness
         $files = array_merge(
             glob(base_path('vendor/martin3r/platform-core/database/migrations/*.php')),
             glob(base_path('vendor/martin3r/platform-organization/database/migrations/*.php')),
+            glob(base_path('vendor/martin3r/platform-activity-log/database/migrations/*.php')),
+            glob(base_path('vendor/martin3r/platform-okr/database/migrations/*.php')),
             glob($module . '/database/migrations/*.php'),
         );
         usort($files, fn ($a, $b) => strcmp(basename($a), basename($b)));

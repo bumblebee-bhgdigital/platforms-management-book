@@ -73,7 +73,7 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
             $query->with(['owner:id,name', 'responsibleAgent:id,name']);
         }
         if ($morphAlias === ManagementBookCommittee::MORPH_ALIAS) {
-            $query->with(['book:id,title', 'chair:id,name']);
+            $query->with(['book:id,title', 'organizationNode:id,name,description']);
         }
     }
 
@@ -85,7 +85,7 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
                 'format' => $model->format()->name(),
                 'status' => $model->status?->label(),
                 'book' => $model->book?->title,
-                'chair' => $model->chair?->name,
+                'chair' => app(\Platform\ManagementBook\Services\CommitteeNodeService::class)->chair($model)['name'] ?? null,
                 'cadence' => $model->cadence,
             ];
         }
@@ -123,10 +123,15 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
         ];
     }
 
-    /** Keine Zeiterfassung am Book. */
+    /**
+     * Zeiterfassung: auf ein Gremium oder eine seiner Sitzungen gebuchte Zeit (context = Gremium bzw. Sitzung)
+     * rollt zum Gremien-Knoten hoch und von dort die Hierarchie hinauf. Am Book selbst wird nicht gebucht.
+     */
     public function timeTrackableCascades(): array
     {
-        return [];
+        return [
+            ManagementBookCommittee::MORPH_ALIAS => [ManagementBookCommittee::class, ['meetings']],
+        ];
     }
 
     /**

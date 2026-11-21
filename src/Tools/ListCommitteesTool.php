@@ -24,7 +24,7 @@ class ListCommitteesTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'GET /management-book/committees - Listet Gremien eines Management Books (nur sichtbare). Einzelnes Gremium: id=<committee_id>. '
-            . 'Sonst Filter: management_book_id, type, status, search, limit/offset. Liefert auch die Mitglieder, die Verortung (organization_nodes) '
+            . 'Sonst Filter: management_book_id, type, status, search, limit/offset. Das Gremium IST ein Organisations-Knoten: name, description, members und chair kommen von dort (identity_source/members_source = organization; Mitglieder aus den Beziehungen is_part_of/manages/is_active_in, auch Personen ohne Konto). Liefert organization_node (Knoten mit URL) '
             . 'und das Format des Gremientyps (bei id=… vollständig: agenda_kinds, agenda_fields, decision_kinds, outcome.checks – damit Agenten Punkte und Beschlüsse passend anlegen).';
     }
 
@@ -85,13 +85,15 @@ class ListCommitteesTool implements ToolContract, ToolMetadataContract
             }
             if (! empty($arguments['search'])) {
                 $term = '%' . $arguments['search'] . '%';
-                $query->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('description', 'like', $term));
+                $nodeIds = class_exists(\Platform\Organization\Models\OrganizationEntity::class)
+                    ? \Platform\Organization\Models\OrganizationEntity::where('name', 'like', $term)->pluck('id')->all() : [];
+                $query->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('description', 'like', $term)->orWhereIn('organization_entity_id', $nodeIds));
             }
 
             $total = (clone $query)->count();
             $limit = min(max((int) ($arguments['limit'] ?? 50), 1), 200);
             $offset = max((int) ($arguments['offset'] ?? 0), 0);
-            $committees = $query->with('members')->orderBy('name')->skip($offset)->take($limit)->get();
+            $committees = $query->with(['members', 'organizationNode'])->orderBy('name')->skip($offset)->take($limit)->get();
 
             return ToolResult::success([
                 'committees' => $committees->map(fn ($c) => $this->committeeToArray($c))->all(),

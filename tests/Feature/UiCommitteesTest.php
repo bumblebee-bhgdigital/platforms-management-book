@@ -118,7 +118,7 @@ class UiCommitteesTest extends TestCase
         $this->assertSame('implemented', $decision->fresh()->status->value);
 
         $member = $d['committee']->members()->first();
-        $t->removeMember($member->id);
+        $t->removeMember('m' . $member->id); // Book-Liste (Gremium ohne Knoten); mit Knoten: 'e<entity_id>'
         $this->assertNull($d['committee']->members()->find($member->id));
     }
 

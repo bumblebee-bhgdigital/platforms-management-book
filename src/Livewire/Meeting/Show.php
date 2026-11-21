@@ -14,6 +14,7 @@ use Platform\ManagementBook\Models\ManagementBookDecision;
 use Platform\ManagementBook\Models\ManagementBookDocument;
 use Platform\ManagementBook\Models\ManagementBookMeeting;
 use Platform\ManagementBook\Models\ManagementBookMeetingAttendee;
+use Platform\ManagementBook\Services\CommitteeNodeService;
 use Platform\ManagementBook\Models\ManagementBookMinutes;
 use Platform\Organization\Models\OrganizationEntity;
 
@@ -33,6 +34,7 @@ class Show extends Component
     public bool $showAttendee = false;
     public bool $showMinutes = false;
     public bool $showDocument = false;
+    public bool $showTime = false;
 
     public ?int $editingItemId = null;
     public ?int $editingDecisionId = null;
@@ -44,6 +46,7 @@ class Show extends Component
     public array $attendeeForm = ['user_id' => null, 'role' => 'member'];
     public array $minutesForm = ['content' => ''];
     public array $documentForm = ['title' => '', 'type' => '', 'agenda_item_id' => null];
+    public array $timeForm = ['minutes' => 60, 'work_date' => '', 'note' => ''];
 
     public function mount(ManagementBookMeeting $meeting): void
     {
@@ -275,21 +278,29 @@ class Show extends Component
 
     // ── Teilnehmer ───────────────────────────────────────────
 
+    /** Gremiumsmitglieder übernehmen (mit Knoten: Personen/Agenten am Gremien-Knoten, auch ohne Plattform-Konto). */
     public function adoptMembers(): void
     {
         $this->authorizeEdit();
+        $committee = $this->meeting->committee;
+        if (! $committee) {
+            return;
+        }
         $existing = $this->meeting->attendees()->get();
-        foreach ($this->meeting->committee->members as $member) {
-            $already = $existing->first(fn ($a) => ($member->user_id && $a->user_id === $member->user_id)
-                || ($member->agent_id && $a->agent_id === $member->agent_id));
-            if (! $already) {
-                $this->meeting->attendees()->create([
-                    'user_id' => $member->user_id,
-                    'agent_id' => $member->agent_id,
-                    'role' => $member->role?->value,
-                    'attended' => false,
-                ]);
+        foreach (app(CommitteeNodeService::class)->members($committee) as $m) {
+            $already = $existing->first(fn ($a) => ($m['user_id'] && $a->user_id === $m['user_id'])
+                || ($m['agent_id'] && $a->agent_id === $m['agent_id'])
+                || ($m['entity_id'] && ! $m['user_id'] && ! $m['agent_id'] && (int) $a->organization_entity_id === $m['entity_id']));
+            if ($already) {
+                continue;
             }
+            $this->meeting->attendees()->create([
+                'user_id' => $m['user_id'],
+                'agent_id' => $m['agent_id'],
+                'organization_entity_id' => ($m['user_id'] || $m['agent_id']) ? null : $m['entity_id'],
+                'role' => $m['role'] === 'agent' ? 'member' : $m['role'],
+                'attended' => false,
+            ]);
         }
     }
 
@@ -412,6 +423,66 @@ class Show extends Component
         $this->child(ManagementBookDocument::class, $documentId)->delete();
     }
 
+    // ── Zeit ─────────────────────────────────────────────────
+
+    /** Zeiterfassung der Organisation vorhanden? (Buchung auf die Sitzung rollt zum Gremien-Knoten hoch) */
+    public static function timeTrackingAvailable(): bool
+    {
+        return class_exists(\Platform\Organization\Models\OrganizationTimeEntry::class)
+            && class_exists(\Platform\Organization\Services\StoreTimeEntry::class);
+    }
+
+    public function openTime(): void
+    {
+        Gate::authorize('view', $this->meeting);
+        $this->timeForm = [
+            'minutes' => (int) ($this->meeting->duration_minutes ?: 60),
+            'work_date' => ($this->meeting->scheduled_at && $this->meeting->scheduled_at->isPast() ? $this->meeting->scheduled_at : now())->format('Y-m-d'),
+            'note' => '',
+        ];
+        $this->resetValidation();
+        $this->showTime = true;
+    }
+
+    /** Eigene Zeit auf die Sitzung buchen (Vorbereitung, Teilnahme, Nachbereitung). */
+    public function bookTime(): void
+    {
+        Gate::authorize('view', $this->meeting);
+        abort_unless(self::timeTrackingAvailable(), 404);
+        $this->validate([
+            'timeForm.minutes' => 'required|integer|min:1|max:1440',
+            'timeForm.work_date' => 'required|date',
+            'timeForm.note' => 'nullable|string|max:500',
+        ]);
+        app(\Platform\Organization\Services\StoreTimeEntry::class)->store([
+            'team_id' => (int) $this->meeting->team_id,
+            'user_id' => (int) Auth::id(),
+            'context_type' => ManagementBookMeeting::class,
+            'context_id' => (int) $this->meeting->id,
+            'work_date' => $this->timeForm['work_date'],
+            'minutes' => (int) $this->timeForm['minutes'],
+            'note' => trim((string) $this->timeForm['note']) ?: ('Sitzung: ' . $this->meeting->title),
+            'metadata' => ['source' => 'management_book_meeting'],
+        ]);
+        $this->showTime = false;
+    }
+
+    /** @return array{total:int,mine:int,people:int} Minuten auf dieser Sitzung */
+    protected function timeSummary(): array
+    {
+        if (! self::timeTrackingAvailable()) {
+            return ['total' => 0, 'mine' => 0, 'people' => 0];
+        }
+        $q = \Platform\Organization\Models\OrganizationTimeEntry::query()
+            ->where('context_type', ManagementBookMeeting::class)->where('context_id', $this->meeting->id);
+
+        return [
+            'total' => (int) (clone $q)->sum('minutes'),
+            'mine' => (int) (clone $q)->where('user_id', Auth::id())->sum('minutes'),
+            'people' => (int) (clone $q)->distinct()->count('user_id'),
+        ];
+    }
+
     // ── Render ───────────────────────────────────────────────
 
     public function render()
@@ -419,11 +490,13 @@ class Show extends Component
         $meeting = $this->meeting->fresh([
             'committee.book:id,title,team_id',
             'committee.members',
+            'committee.organizationNode',
             'agendaItems.ownerUser:id,name',
             'decisions.ownerUser:id,name',
             'decisions.ownerAgent:id,name',
             'attendees.user:id,name',
             'attendees.agent:id,name',
+            'attendees.person:id,name',
             'minutes.approver:id,name',
             'documents',
         ]);
@@ -448,6 +521,9 @@ class Show extends Component
         return view('management-book::livewire.meeting.show', [
             'meeting' => $meeting,
             'committee' => $meeting->committee,
+            'timeAvailable' => self::timeTrackingAvailable(),
+            'time' => $this->timeSummary(),
+            'committeeHasMembers' => $meeting->committee ? app(CommitteeNodeService::class)->members($meeting->committee)->isNotEmpty() : false,
             'book' => $meeting->committee?->book,
             'items' => $items,
             'decisions' => $meeting->decisions->sortBy(fn ($d) => [$d->status?->value === 'open' ? 0 : 1, $d->due_date?->timestamp ?? PHP_INT_MAX])->values(),

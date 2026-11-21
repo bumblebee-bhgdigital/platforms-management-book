@@ -118,3 +118,21 @@
         </div>
     </x-slot>
 </x-nx-modal>
+
+<x-nx-modal wire:model="showTime" size="sm">
+    <x-slot name="header">Zeit auf diese Sitzung buchen</x-slot>
+    <div class="space-y-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <x-nx-input-text name="timeForm.minutes" type="number" label="Minuten" wire:model="timeForm.minutes" min="1" required />
+            <x-nx-input-text name="timeForm.work_date" type="date" label="Datum" wire:model="timeForm.work_date" required />
+        </div>
+        <x-nx-input-text name="timeForm.note" label="Notiz" wire:model="timeForm.note" placeholder="z. B. Vorbereitung Agenda" />
+        <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-faint)]">Die Zeit wird auf die Sitzung gebucht und zählt am Gremien-Knoten in der Organisation.</p>
+    </div>
+    <x-slot name="footer">
+        <div class="flex justify-end gap-3">
+            <x-nx-button variant="ghost" wire:click="$set('showTime', false)">Abbrechen</x-nx-button>
+            <x-nx-button variant="primary" wire:click="bookTime">Buchen</x-nx-button>
+        </div>
+    </x-slot>
+</x-nx-modal>

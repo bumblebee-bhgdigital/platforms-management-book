@@ -296,6 +296,16 @@ class ManagementBookServiceProvider extends ServiceProvider
 
     protected function onDimensionLinkChanged($link, string $action, bool $enforce): void
     {
+        // Gremien: Spalte organization_entity_id folgt externen Verknüpfungen (organization.entity.link.POST, Terminal-App)
+        if ($link->linkable_type === \Platform\ManagementBook\Models\ManagementBookCommittee::MORPH_ALIAS) {
+            try {
+                resolve(\Platform\ManagementBook\Services\CommitteeNodeService::class)->syncFromBridge((int) $link->linkable_id);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('ManagementBook: Gremium-Verortung nicht nachgezogen', ['error' => $e->getMessage()]);
+            }
+
+            return;
+        }
         if ($link->linkable_type !== \Platform\ManagementBook\Models\ManagementBook::MORPH_ALIAS) {
             return;
         }

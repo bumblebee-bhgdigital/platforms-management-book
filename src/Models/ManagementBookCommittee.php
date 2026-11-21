@@ -3,6 +3,7 @@
 namespace Platform\ManagementBook\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ use Platform\ManagementBook\Enums\CommitteeType;
 use Symfony\Component\Uid\UuidV7;
 
 /**
- * @ai.description Gremium eines Management Books (z. B. Lenkungsausschuss). Keine Standard-Agenda, keine Ablauflogik; das Format je Typ (format()) legt Agenda-Felder, Arten von Punkten/Beschlüssen und die Erfolgsmessung fest. Verortung an einem Organisations-Knoten lose per DimensionLink (Alias management_book_committee).
+ * @ai.description Gremium eines Management Books (z. B. Lenkungsausschuss). Das Gremium IST ein Organisations-Knoten (organization_entity_id, eindeutig je Team): Name, Beschreibung, Mitglieder (is_part_of) und Vorsitz (manages) kommen vom Knoten; das Book liefert das Betriebssystem dazu – Typ/Format (format()), Rhythmus, Sitzungen, Beschlüsse. Die Dimension-Bridge-Verknüpfung (Alias management_book_committee) wird aus der Spalte gepflegt (CommitteeNodeService).
  *
  * Sichtbarkeit/Rechte werden vom Management Book geerbt (ManagementBookCommitteePolicy).
  *
@@ -32,6 +33,7 @@ class ManagementBookCommittee extends Model implements HasDisplayName
         'uuid',
         'team_id',
         'management_book_id',
+        'organization_entity_id',
         'name',
         'type',
         'description',
@@ -48,6 +50,7 @@ class ManagementBookCommittee extends Model implements HasDisplayName
         'type' => CommitteeType::class,
         'status' => CommitteeStatus::class,
         'signal_set_id' => 'integer',
+        'organization_entity_id' => 'integer',
     ];
 
     protected static function booted(): void
@@ -76,6 +79,38 @@ class ManagementBookCommittee extends Model implements HasDisplayName
     public function book(): BelongsTo
     {
         return $this->belongsTo(ManagementBook::class, 'management_book_id');
+    }
+
+    /** Organisations-Knoten des Gremiums (Identität: Name, Beschreibung, Mitglieder, Vorsitz). */
+    public function organizationNode(): BelongsTo
+    {
+        return $this->belongsTo(\Platform\Organization\Models\OrganizationEntity::class, 'organization_entity_id');
+    }
+
+    /** Name kommt vom Knoten; die Spalte ist nur Fallback/Cache (Übergang, ohne Organisations-Modul). */
+    protected function name(): Attribute
+    {
+        return Attribute::get(fn ($value) => $this->nodeAttribute('name') ?? $value);
+    }
+
+    /** Beschreibung kommt vom Knoten (leer am Knoten = leer). */
+    protected function description(): Attribute
+    {
+        return Attribute::get(fn ($value) => $this->hasNode() ? $this->nodeAttribute('description') : $value);
+    }
+
+    public function hasNode(): bool
+    {
+        return (bool) $this->organization_entity_id && class_exists(\Platform\Organization\Models\OrganizationEntity::class) && $this->organizationNode !== null;
+    }
+
+    private function nodeAttribute(string $key): mixed
+    {
+        if (! $this->organization_entity_id || ! class_exists(\Platform\Organization\Models\OrganizationEntity::class)) {
+            return null;
+        }
+
+        return $this->organizationNode?->getAttribute($key);
     }
 
     public function chair(): BelongsTo

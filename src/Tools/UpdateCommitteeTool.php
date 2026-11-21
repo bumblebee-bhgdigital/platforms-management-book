@@ -22,9 +22,10 @@ class UpdateCommitteeTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'PUT /management-book/committees/{id} - Ändert ein Gremium. Pflicht: id. '
-            . 'Felder: name, type, description, cadence, chair_user_id, responsible_agent_id, signal_set_id, status (active/dormant/dissolved), '
-            . 'organization_entity_id (Verortung am Organisations-Knoten, 0 = lösen). Der Typ bestimmt das Format (Agenda-Felder, Arten, Erfolgsmessung). '
-            . 'members[] ersetzt die komplette Mitgliederliste (weglassen = unverändert, [] = alle entfernen). Nicht übergebene Felder bleiben unverändert.';
+            . 'Das Gremium IST ein Organisations-Knoten: name/description ändern den Knoten, members[] schreibt die Beziehungen am Knoten '
+            . '(chair → „führt an“, member → „ist Teil von“, agent → „ist aktiv in“; ersetzt die Liste, weglassen = unverändert). '
+            . 'Book-eigene Felder: type (bestimmt das Format), cadence, status (active/dormant/dissolved), responsible_agent_id, signal_set_id. '
+            . 'organization_entity_id hängt das Gremium an einen anderen (freien) Gremien-Knoten; 0 löst die Verbindung (nur Übergang). Nicht übergebene Felder bleiben unverändert.';
     }
 
     public function getSchema(): array
@@ -59,25 +60,33 @@ class UpdateCommitteeTool implements ToolContract, ToolMetadataContract
             if (array_key_exists('name', $arguments) && trim((string) $arguments['name']) === '') {
                 return ToolResult::error('VALIDATION_ERROR', 'name darf nicht leer sein.');
             }
-            if ($message = $this->validateCommitteeInput($arguments, $team->id) ?? $this->validatePlacement($arguments, $context)) {
+            if ($message = $this->validateCommitteeInput($arguments, $team->id) ?? $this->validatePlacement($arguments, $context, $committee)) {
                 return ToolResult::error('VALIDATION_ERROR', $message);
             }
 
-            DB::transaction(function () use ($arguments, $committee) {
-                $fields = array_intersect_key($arguments, array_flip(['name', 'type', 'description', 'cadence', 'chair_user_id', 'responsible_agent_id', 'signal_set_id', 'status']));
+            DB::transaction(function () use ($arguments, $committee, $context) {
+                $fields = array_intersect_key($arguments, array_flip(['type', 'cadence', 'responsible_agent_id', 'signal_set_id', 'status']));
                 if ($fields !== []) {
                     $committee->update($fields);
                 }
-                if (isset($arguments['members']) && is_array($arguments['members'])) {
-                    $this->syncMembers($committee, $arguments['members']);
-                }
                 $this->applyPlacement($committee, $arguments);
+                $committee->refresh();
+                if ($err = $this->applyIdentity($committee, $arguments, $context)) {
+                    throw new \DomainException($err);
+                }
+                if (isset($arguments['members']) && is_array($arguments['members'])) {
+                    if ($err = $this->syncMembers($committee, $arguments['members'], $context)) {
+                        throw new \DomainException($err);
+                    }
+                }
             });
 
             return ToolResult::success([
                 'committee' => $this->committeeToArray($committee->fresh(), true),
                 'message' => "Gremium #{$committee->id} aktualisiert.",
             ]);
+        } catch (\DomainException $e) {
+            return ToolResult::error('VALIDATION_ERROR', $e->getMessage());
         } catch (\Throwable $e) {
             return ToolResult::error('EXECUTION_ERROR', 'Fehler beim Aktualisieren: ' . $e->getMessage());
         }

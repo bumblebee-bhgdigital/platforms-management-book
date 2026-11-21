@@ -19,7 +19,7 @@ class UpdateMeetingAttendeeTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /management-book/meeting_attendees/{id} - Ändert einen Teilnehmer (role, attended, user_id/agent_id). Pflicht: id.';
+        return 'PUT /management-book/meeting_attendees/{id} - Ändert einen Teilnehmer (role, attended, user_id/agent_id/organization_entity_id). Pflicht: id.';
     }
 
     public function getSchema(): array

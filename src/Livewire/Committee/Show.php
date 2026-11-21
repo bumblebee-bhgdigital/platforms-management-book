@@ -18,8 +18,9 @@ use Platform\ManagementBook\Services\CommitteeNodeService;
 use Platform\Organization\Models\OrganizationEntity;
 
 /**
- * Gremium-Seite: Stammdaten, Format des Gremientyps, Verortung in der Organisation, Mitglieder,
- * Sitzungen (anstehend/vergangen mit Erfolgsmessung des Formats) und offene Beschlüsse über alle Sitzungen.
+ * Gremium-Seite: Das Gremium IST ein Organisations-Knoten – Name, Beschreibung, Mitglieder und Vorsitz kommen
+ * vom Knoten (Beziehungen is_part_of / manages / is_active_in) und werden dorthin geschrieben. Das Book ergänzt
+ * Format des Gremientyps, Rhythmus, Sitzungen (mit Erfolgsmessung) und offene Beschlüsse.
  */
 class Show extends Component
 {
@@ -30,7 +31,7 @@ class Show extends Component
     public bool $showMeeting = false;
 
     public array $form = [];
-    public array $memberForm = ['user_id' => null, 'role' => 'member'];
+    public array $memberForm = ['entity_id' => null, 'user_id' => null, 'role' => 'member'];
     public array $meetingForm = ['title' => '', 'scheduled_at' => '', 'duration_minutes' => 90, 'location' => ''];
 
     public bool $placing = false;
@@ -54,7 +55,6 @@ class Show extends Component
             'status' => $c->status?->value,
             'description' => $c->description,
             'cadence' => $c->cadence,
-            'chair_user_id' => $c->chair_user_id,
         ];
         $this->resetValidation();
         $this->showEdit = true;
@@ -69,14 +69,30 @@ class Show extends Component
             'form.status' => 'required|in:' . implode(',', CommitteeStatus::values()),
             'form.description' => 'nullable|string',
             'form.cadence' => 'nullable|string|max:255',
-            'form.chair_user_id' => 'nullable|integer|exists:users,id',
         ]);
-        $data = $this->form;
-        foreach (['description', 'cadence', 'chair_user_id'] as $k) {
-            $data[$k] = $data[$k] ?: null;
+        $this->committee->update([
+            'type' => $this->form['type'],
+            'status' => $this->form['status'],
+            'cadence' => $this->form['cadence'] ?: null,
+        ]);
+
+        // Name/Beschreibung: am Knoten (Single Source), ohne Knoten im Book
+        $service = $this->nodes();
+        $nodeId = $service->available() ? $service->nodeId($this->committee) : null;
+        if ($nodeId) {
+            if (in_array($nodeId, $this->writableEntityIds(), true)) {
+                $service->updateNodeText($this->committee, $this->form['name'], $this->form['description'] ?: null, true);
+                $this->committee->forceFill(['name' => trim($this->form['name']), 'description' => $this->form['description'] ?: null])->saveQuietly();
+            }
+        } else {
+            $this->committee->update(['name' => trim($this->form['name']), 'description' => $this->form['description'] ?: null]);
         }
-        $this->committee->update($data);
         $this->showEdit = false;
+    }
+
+    protected function nodes(): CommitteeNodeService
+    {
+        return app(CommitteeNodeService::class);
     }
 
     public function setStatus(string $status): void
@@ -115,7 +131,13 @@ class Show extends Component
     {
         Gate::authorize('update', $this->committee);
         abort_unless(in_array($entityId, $this->writableEntityIds(), true), 403, 'Kein Schreibrecht auf diesen Knoten.');
-        app(CommitteeNodeService::class)->place($this->committee, $entityId);
+        try {
+            $this->nodes()->place($this->committee, $entityId);
+        } catch (\DomainException $e) {
+            $this->addError('placement', $e->getMessage());
+
+            return;
+        }
         $this->cancelPlacing();
     }
 
@@ -143,8 +165,14 @@ class Show extends Component
             return [];
         }
         $search = trim($this->nodeSearch);
+        $service = $this->nodes();
+        $typeIds = \Platform\Organization\Models\OrganizationEntityType::whereIn('code', CommitteeNodeService::COMMITTEE_TYPE_CODES)->pluck('id');
+        $taken = ManagementBookCommittee::where('team_id', $this->committee->team_id)->whereKeyNot($this->committee->id)
+            ->whereNotNull('organization_entity_id')->pluck('organization_entity_id')->all();
 
         return OrganizationEntity::query()->with('type:id,name')->whereIn('id', $writable)->where('is_active', true)
+            ->when($typeIds->isNotEmpty(), fn ($q) => $q->whereIn('entity_type_id', $typeIds))
+            ->whereNotIn('id', $taken)
             ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")))
             ->orderBy('name')->limit($search !== '' ? 20 : 10)->get(['id', 'name', 'entity_type_id'])
             ->map(fn ($e) => ['id' => (int) $e->id, 'name' => $e->name, 'type' => $e->type?->name])->all();
@@ -155,7 +183,7 @@ class Show extends Component
     public function openMember(): void
     {
         Gate::authorize('update', $this->committee);
-        $this->memberForm = ['user_id' => null, 'role' => 'member'];
+        $this->memberForm = ['entity_id' => null, 'user_id' => null, 'role' => 'member'];
         $this->resetValidation();
         $this->showMember = true;
     }
@@ -163,6 +191,22 @@ class Show extends Component
     public function addMember(): void
     {
         Gate::authorize('update', $this->committee);
+        $service = $this->nodes();
+        $nodeId = $service->available() ? $service->nodeId($this->committee) : null;
+
+        if ($nodeId) {
+            // Mitglieder sind Beziehungen am Gremien-Knoten
+            abort_unless(in_array($nodeId, $this->writableEntityIds(), true), 403, 'Kein Schreibrecht auf den Gremien-Knoten.');
+            $this->validate([
+                'memberForm.entity_id' => 'required|integer',
+                'memberForm.role' => 'required|in:chair,member,agent',
+            ]);
+            $service->setMember($this->committee, (int) $this->memberForm['entity_id'], $this->memberForm['role']);
+            $this->showMember = false;
+
+            return;
+        }
+
         $this->validate([
             'memberForm.user_id' => 'required|integer|exists:users,id',
             'memberForm.role' => 'required|in:' . implode(',', CommitteeMemberRole::values()),
@@ -180,10 +224,19 @@ class Show extends Component
         $this->showMember = false;
     }
 
-    public function removeMember(int $memberId): void
+    /** $key: e<entity_id> (Beziehung am Knoten) oder m<member_id> (Book-Liste, Übergang). */
+    public function removeMember(string $key): void
     {
         Gate::authorize('update', $this->committee);
-        $this->committee->members()->whereKey($memberId)->delete();
+        $id = (int) substr($key, 1);
+        if (str_starts_with($key, 'e')) {
+            $nodeId = $this->nodes()->nodeId($this->committee);
+            abort_unless($nodeId && in_array($nodeId, $this->writableEntityIds(), true), 403, 'Kein Schreibrecht auf den Gremien-Knoten.');
+            $this->nodes()->removeMember($this->committee, $id);
+
+            return;
+        }
+        $this->committee->members()->whereKey($id)->delete();
     }
 
     // ── Sitzungen ────────────────────────────────────────────
@@ -238,7 +291,7 @@ class Show extends Component
 
     public function render()
     {
-        $committee = $this->committee->fresh(['book:id,title,team_id', 'chair:id,name', 'responsibleAgent:id,name', 'members.user:id,name', 'members.agent:id,name']);
+        $committee = $this->committee->fresh(['book:id,title,team_id', 'responsibleAgent:id,name', 'members.user:id,name', 'members.agent:id,name']);
 
         $meetings = $committee->meetings()
             ->withCount(['agendaItems', 'decisions'])
@@ -261,9 +314,11 @@ class Show extends Component
             }
         }
 
-        $nodeService = app(CommitteeNodeService::class);
-        $nodeIds = $nodeService->nodeIds($committee);
-        $nodes = $nodeIds === [] ? collect() : OrganizationEntity::with('type:id,name')->whereIn('id', $nodeIds)->get(['id', 'name', 'entity_type_id']);
+        $nodeService = $this->nodes();
+        $node = $nodeService->node($committee);
+        $nodes = $node ? collect([$node]) : collect();
+        $members = $nodeService->members($committee);
+        $nodeWritable = $node && in_array((int) $node->id, $this->writableEntityIds(), true);
 
         $openDecisions = ManagementBookDecision::query()
             ->whereIn('meeting_id', $meetings->pluck('id'))
@@ -283,6 +338,13 @@ class Show extends Component
             'capability' => $capability,
             'format' => $format,
             'nodes' => $nodes,
+            'node' => $node,
+            'nodeUrl' => $nodeService->nodeUrl($node?->id),
+            'nodeWritable' => $nodeWritable,
+            'members' => $members,
+            'chair' => $members->firstWhere('role', 'chair') ?? $nodeService->chair($committee),
+            'personOptions' => $node && $this->showMember ? $nodeService->personOptions((int) $committee->team_id) : [],
+            'nodeRoleOptions' => [['value' => 'chair', 'label' => 'Vorsitz'], ['value' => 'member', 'label' => 'Mitglied'], ['value' => 'agent', 'label' => 'Agent']],
             'nodesAvailable' => $nodeService->available(),
             'nodeCandidates' => $this->nodeCandidates(),
             'openDecisions' => $openDecisions,

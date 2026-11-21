@@ -1,4 +1,4 @@
-{{-- Tab „Gremien“: Einstieg in die Rolle der Gremien, Gremien als Karten, Startvorschläge im Leerzustand. --}}
+{{-- Tab „Gremien“: Einstieg in die Rolle der Gremien, Gremien als Karten, Gremien-Knoten zum Aktivieren, Startvorschläge im Leerzustand. --}}
 <div class="space-y-8">
     {{-- Einstieg: wie die Gremien im Regelkreis zusammenspielen --}}
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -99,11 +99,11 @@
                     <dl class="m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div>
                             <dt class="text-xs text-[color:var(--nx-faint)]">Vorsitz</dt>
-                            <dd class="m-0 truncate text-[color:var(--nx-text)]">{{ $committee->chair?->name ?? 'offen' }}</dd>
+                            <dd class="m-0 truncate text-[color:var(--nx-text)]">{{ $chairs[$committee->id]['name'] ?? 'offen' }}</dd>
                         </div>
                         <div>
                             <dt class="text-xs text-[color:var(--nx-faint)]">Rhythmus</dt>
-                            <dd class="m-0 truncate text-[color:var(--nx-text)]">{{ $committee->cadence ?: '–' }} · {{ $committee->members_count }} {{ $committee->members_count === 1 ? 'Mitglied' : 'Mitglieder' }}</dd>
+                            <dd class="m-0 truncate text-[color:var(--nx-text)]">{{ $committee->cadence ?: '–' }} · {{ $people[$committee->id]->count() }} {{ $people[$committee->id]->count() === 1 ? 'Mitglied' : 'Mitglieder' }}</dd>
                         </div>
                         <div>
                             <dt class="text-xs text-[color:var(--nx-faint)]">Nächste Sitzung</dt>
@@ -127,16 +127,51 @@
         </div>
     @endif
 
+    @if($suggestions->isNotEmpty())
+        <section class="space-y-3">
+            <div class="max-w-2xl space-y-1">
+                <h3 class="m-0 text-sm font-semibold text-[color:var(--nx-text)]">Gremien-Knoten in der Organisation</h3>
+                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                    Diese Gremien gibt es in der Organisation schon, im Book arbeiten sie noch nicht. Aktivieren macht den Knoten zum Gremium – Name, Beschreibung und Mitglieder bleiben dort, das Book ergänzt Format, Sitzungen und Beschlüsse.
+                </p>
+            </div>
+            <x-nx-card flush>
+                @foreach($suggestions as $s)
+                    <div class="flex items-center gap-3 border-b border-[color:var(--nx-line)] px-5 py-3 last:border-b-0" wire:key="sugg-{{ $s->id }}">
+                        @svg('heroicon-o-user-group', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)]')
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-sm text-[color:var(--nx-text)]">{{ $s->name }}</span>
+                            @if($s->parent)<span class="block truncate text-xs text-[color:var(--nx-faint)]">unter {{ $s->parent->name }}</span>@endif
+                        </span>
+                        @if($canEdit)
+                            <x-nx-button variant="secondary" size="sm" wire:click="openCreate(null, {{ $s->id }})">Aktivieren</x-nx-button>
+                        @endif
+                    </div>
+                @endforeach
+            </x-nx-card>
+        </section>
+    @endif
+
     <x-nx-modal wire:model="showCreate" size="md">
         <x-slot name="header">Gremium anlegen</x-slot>
         <div class="space-y-4">
-            <x-nx-input-text name="form.name" label="Name" wire:model="form.name" placeholder="z. B. Lenkungsausschuss" required />
+            @if($nodesAvailable)
+                <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-muted)]">
+                    @if($form['entity_id'])
+                        Das Gremium ist der vorhandene Knoten der Organisation – Name, Zweck und Mitglieder bleiben dort.
+                    @else
+                        Das Gremium wird als Knoten in der Organisation angelegt (unter „Governance“ der Einheit dieses Books). Name, Zweck und Mitglieder liegen dort.
+                    @endif
+                </p>
+            @endif
+            @error('form.entity_id')<p class="m-0 text-xs text-[color:var(--nx-danger)]">{{ $message }}</p>@enderror
+            <x-nx-input-text name="form.name" label="Name" wire:model="form.name" placeholder="z. B. BHG.DIGITAL Lenkungsausschuss" required :disabled="(bool) $form['entity_id']" />
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <x-nx-input-select name="form.type" label="Typ" :options="$typeOptions" wire:model="form.type" />
                 <x-nx-input-text name="form.cadence" label="Rhythmus" wire:model="form.cadence" placeholder="z. B. monatlich" />
             </div>
             <x-nx-input-select name="form.chair_user_id" label="Vorsitz" :options="$userOptions" nullable="true" nullLabel="– offen –" wire:model="form.chair_user_id" />
-            <x-nx-input-textarea name="form.description" label="Zweck" wire:model="form.description" rows="3" hint="Wofür ist das Gremium da – und was gehört nicht hierher?" />
+            <x-nx-input-textarea name="form.description" label="Zweck" wire:model="form.description" rows="3" hint="Wofür ist das Gremium da – und was gehört nicht hierher?" :disabled="(bool) $form['entity_id']" />
             <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-muted)]">Das Gremium enthält keine Ablaufregeln. Agenda und Arbeitsweise legt ihr in den Sitzungen fest.</p>
         </div>
         <x-slot name="footer">

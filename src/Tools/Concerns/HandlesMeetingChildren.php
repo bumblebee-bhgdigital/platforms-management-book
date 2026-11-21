@@ -60,7 +60,7 @@ trait HandlesMeetingChildren
             ],
             'attendee' => [
                 'label' => 'Teilnehmer', 'plural' => 'meeting_attendees', 'class' => ManagementBookMeetingAttendee::class,
-                'fields' => ['user_id', 'agent_id', 'role', 'attended'],
+                'fields' => ['user_id', 'agent_id', 'organization_entity_id', 'role', 'attended'],
                 'created_by' => false, 'agenda' => false, 'search' => ['role'],
             ],
         };
@@ -131,8 +131,9 @@ trait HandlesMeetingChildren
                 'linked_task_id' => ['type' => 'integer', 'description' => 'Optional: lose Verknüpfung zu einer Planner-Aufgabe (ID, keine automatische Anlage/Synchronisation).'],
             ] + $owner,
             'attendee' => [
-                'user_id' => ['type' => 'integer', 'description' => 'Teilnehmer (User-ID). Genau eines von user_id oder agent_id.'],
+                'user_id' => ['type' => 'integer', 'description' => 'Teilnehmer (User-ID). Genau eines von user_id, agent_id oder organization_entity_id.'],
                 'agent_id' => ['type' => 'integer', 'description' => 'Teilnehmender Agent (User-ID eines Agent-Users, type ai_user).'],
+                'organization_entity_id' => ['type' => 'integer', 'description' => 'Teilnehmer als Personen-Knoten der Organisation – für Personen ohne Plattform-Konto (z. B. Gesellschafter, Externe).'],
                 'role' => ['type' => 'string', 'description' => 'Freie Rolle (z. B. chair, member, guest, secretary).'],
                 'attended' => ['type' => 'boolean', 'description' => 'Tatsächlich anwesend gewesen (Default false). Frei setzbar, auch nachträglich.'],
             ],
@@ -163,6 +164,7 @@ trait HandlesMeetingChildren
         if ($kind === 'attendee') {
             $props['user_id'] = ['type' => 'integer', 'description' => 'Optional: nur Teilnahmen dieses Users.'];
             $props['agent_id'] = ['type' => 'integer', 'description' => 'Optional: nur Teilnahmen dieses Agents.'];
+            $props['organization_entity_id'] = ['type' => 'integer', 'description' => 'Optional: nur Teilnahmen dieses Personen-Knotens.'];
             $props['attended'] = ['type' => 'boolean', 'description' => 'Optional: nach tatsächlicher Anwesenheit filtern.'];
         }
         if ($kind === 'minutes') {
@@ -272,6 +274,8 @@ trait HandlesMeetingChildren
             'attendee' => [
                 'user_id' => $m->user_id,
                 'agent_id' => $m->agent_id,
+                'organization_entity_id' => $m->organization_entity_id,
+                'name' => $m->displayName(),
                 'role' => $m->role,
                 'attended' => (bool) $m->attended,
             ],
@@ -384,8 +388,13 @@ trait HandlesMeetingChildren
         if ($kind === 'attendee') {
             $user = array_key_exists('user_id', $arguments) ? $arguments['user_id'] : $existing?->user_id;
             $agent = array_key_exists('agent_id', $arguments) ? $arguments['agent_id'] : $existing?->agent_id;
-            if (empty($user) === empty($agent)) {
-                return 'Genau eines von user_id oder agent_id angeben.';
+            $entity = array_key_exists('organization_entity_id', $arguments) ? $arguments['organization_entity_id'] : $existing?->organization_entity_id;
+            if (count(array_filter([$user, $agent, $entity])) !== 1) {
+                return 'Genau eines von user_id, agent_id oder organization_entity_id angeben.';
+            }
+            if (! empty($entity) && (! class_exists(\Platform\Organization\Models\OrganizationEntity::class)
+                || ! \Platform\Organization\Models\OrganizationEntity::whereKey((int) $entity)->exists())) {
+                return "Knoten (organization_entity_id) {$entity} nicht gefunden.";
             }
         }
         $userIds = array_values(array_unique($userIds));
@@ -492,7 +501,7 @@ trait HandlesMeetingChildren
                 }
             }
             if ($kind === 'attendee') {
-                foreach (['user_id', 'agent_id'] as $col) {
+                foreach (['user_id', 'agent_id', 'organization_entity_id'] as $col) {
                     if (! empty($arguments[$col])) {
                         $query->where($col, (int) $arguments[$col]);
                     }

@@ -13,10 +13,12 @@ use Platform\ManagementBook\Livewire\Concerns\LoadsBook;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
 use Platform\ManagementBook\Models\ManagementBookDecision;
 use Platform\ManagementBook\Models\ManagementBookMeeting;
+use Platform\ManagementBook\Services\CommitteeNodeService;
 
 /**
  * Tab „Gremien“ eines Management Books: Gremien als Liste (Typ, Vorsitz, Mitglieder, Rhythmus,
- * nächste Sitzung, offene Beschlüsse) und Anlegen. Reine Datenhaltung, keine Ablauflogik.
+ * nächste Sitzung, offene Beschlüsse) und Anlegen. Ein Gremium IST ein Organisations-Knoten: Anlegen heißt,
+ * einen vorhandenen Gremien-Knoten zu aktivieren oder einen neuen (unter „Governance“ der Einheit) anzulegen.
  */
 class Committees extends Component
 {
@@ -30,6 +32,7 @@ class Committees extends Component
         'description' => '',
         'cadence' => '',
         'chair_user_id' => null,
+        'entity_id' => null,
     ];
 
     /** Vorschläge als Startpunkt (nur Vorbelegung des Formulars, keine Automatik). */
@@ -48,12 +51,24 @@ class Committees extends Component
         ],
     ];
 
-    public function openCreate(?string $preset = null): void
+    public function openCreate(?string $preset = null, ?int $entityId = null): void
     {
         $this->authorizeEdit();
         $this->reset('form');
         if ($preset && isset(self::PRESETS[$preset])) {
             $this->form = array_merge($this->form, self::PRESETS[$preset]);
+        }
+        if ($entityId && class_exists(\Platform\Organization\Models\OrganizationEntity::class)) {
+            $node = \Platform\Organization\Models\OrganizationEntity::find($entityId);
+            if ($node) {
+                $name = mb_strtolower($node->name);
+                $this->form = array_merge($this->form, [
+                    'entity_id' => $node->id,
+                    'name' => $node->name,
+                    'description' => (string) $node->description,
+                    'type' => str_contains($name, 'lenkung') ? 'steering_committee' : (str_contains($name, 'strateg') ? 'strategy_meeting' : (str_contains($name, 'board') ? 'board' : 'other')),
+                ]);
+            }
         }
         $this->resetValidation();
         $this->showCreate = true;
@@ -68,25 +83,84 @@ class Committees extends Component
             'form.description' => 'nullable|string',
             'form.cadence' => 'nullable|string|max:255',
             'form.chair_user_id' => 'nullable|integer|exists:users,id',
+            'form.entity_id' => 'nullable|integer',
         ]);
 
-        $committee = ManagementBookCommittee::create([
-            'team_id' => $book->team_id,
-            'management_book_id' => $book->id,
-            'name' => trim($this->form['name']),
-            'type' => $this->form['type'],
-            'description' => $this->form['description'] ?: null,
-            'cadence' => $this->form['cadence'] ?: null,
-            'chair_user_id' => $this->form['chair_user_id'] ?: null,
-            'created_by' => Auth::id(),
-        ]);
-        if ($committee->chair_user_id) {
-            $committee->members()->create(['user_id' => $committee->chair_user_id, 'role' => 'chair']);
+        $service = app(CommitteeNodeService::class);
+        $writable = $this->writableEntityIds();
+        $entityId = (int) ($this->form['entity_id'] ?? 0);
+
+        $nodeMode = $service->nodeMode();
+        if ($nodeMode) {
+            if ($entityId) {
+                if (! in_array($entityId, $writable, true)) {
+                    $this->addError('form.entity_id', 'Kein Schreibrecht auf diesen Gremien-Knoten.');
+
+                    return null;
+                }
+                if ($service->committeeAt($entityId, (int) $book->team_id)) {
+                    $this->addError('form.entity_id', 'Dieser Knoten ist bereits ein Gremium.');
+
+                    return null;
+                }
+            } else {
+                $unitId = $service->unitNodeIds($book)[0] ?? null;
+                if (! $unitId) {
+                    $this->addError('form.name', 'Das Book hängt an keinem Organisations-Knoten – verorte es zuerst, dann entsteht das Gremium unter „Governance“ der Einheit.');
+
+                    return null;
+                }
+                if (! in_array($unitId, $writable, true)) {
+                    $this->addError('form.name', 'Kein Schreibrecht auf die Einheit in der Organisation – der Gremien-Knoten kann nicht angelegt werden.');
+
+                    return null;
+                }
+            }
         }
+
+        $committee = DB::transaction(function () use ($book, $service, $entityId, $nodeMode) {
+            $node = null;
+            if ($nodeMode) {
+                $node = $entityId
+                    ? \Platform\Organization\Models\OrganizationEntity::findOrFail($entityId)
+                    : $service->createNode($book, trim($this->form['name']), null, $this->form['description'] ?: null);
+            }
+            $committee = ManagementBookCommittee::create([
+                'team_id' => $book->team_id,
+                'management_book_id' => $book->id,
+                'name' => $node?->name ?? trim($this->form['name']),
+                'type' => $this->form['type'],
+                'description' => $node ? $node->description : ($this->form['description'] ?: null),
+                'cadence' => $this->form['cadence'] ?: null,
+                'chair_user_id' => $node ? null : ($this->form['chair_user_id'] ?: null),
+                'created_by' => Auth::id(),
+            ]);
+            if ($node) {
+                $service->place($committee, $node->id);
+                $personId = $this->form['chair_user_id'] ? $service->personEntityIdForUser((int) $this->form['chair_user_id']) : null;
+                if ($personId) {
+                    $service->setMember($committee, $personId, 'chair');
+                }
+            } elseif ($committee->chair_user_id) {
+                $committee->members()->create(['user_id' => $committee->chair_user_id, 'role' => 'chair']);
+            }
+
+            return $committee;
+        });
 
         $this->showCreate = false;
 
         return $this->redirect(route('management-book.committees.show', $committee), navigate: true);
+    }
+
+    /** @return int[] */
+    protected function writableEntityIds(): array
+    {
+        if (! class_exists(\Platform\Organization\Authz\DimensionLinkAuthorizer::class) || ! Auth::user()) {
+            return [];
+        }
+
+        return (new \Platform\Organization\Authz\DimensionLinkAuthorizer())->writableEntityIds(Auth::user());
     }
 
     public function render()
@@ -94,11 +168,14 @@ class Committees extends Component
         $book = $this->book();
         $committees = ManagementBookCommittee::query()
             ->where('management_book_id', $book->id)
-            ->with(['chair:id,name'])
-            ->withCount('members')
+            ->with(['members.user:id,name', 'members.agent:id,name'])
             ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'dormant' THEN 1 ELSE 2 END")
             ->orderBy('name')
             ->get();
+
+        $service = app(CommitteeNodeService::class);
+        $people = $committees->mapWithKeys(fn ($c) => [$c->id => $service->members($c)]);
+        $chairs = $committees->mapWithKeys(fn ($c) => [$c->id => $people[$c->id]->firstWhere('role', 'chair') ?? $service->chair($c)]);
 
         $ids = $committees->pluck('id');
         $nextMeetings = ManagementBookMeeting::query()
@@ -123,6 +200,10 @@ class Committees extends Component
         return view('management-book::livewire.book.committees', [
             'book' => $book,
             'committees' => $committees,
+            'people' => $people,
+            'chairs' => $chairs,
+            'suggestions' => $service->suggestions($book),
+            'nodesAvailable' => $service->nodeMode(),
             'nextMeetings' => $nextMeetings,
             'openDecisions' => $openDecisions,
             'canEdit' => $this->canEdit(),

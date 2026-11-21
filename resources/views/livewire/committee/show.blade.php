@@ -1,5 +1,6 @@
 {{--
-    Gremium-Seite (nx): breiter Kopf mit Format des Gremientyps und Verortung in der Organisation, Hauptspalte
+    Gremium-Seite (nx): Das Gremium IST ein Organisations-Knoten (Name, Beschreibung, Mitglieder, Vorsitz kommen von dort).
+    Breiter Kopf mit Format des Gremientyps und Knoten, Hauptspalte
     (Kennzahlen, Sitzungen, offene Beschlüsse, Mitglieder – je mit Erklärung) und Orientierungsspalte (Fall-Sortierer + Guide).
 --}}
 <x-ui-page>
@@ -63,7 +64,7 @@
                     <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Book\Committees::statusBadge($committee->status)" dot>{{ $committee->status?->label() }}</x-nx-badge>
                 </div>
                 <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-[color:var(--nx-muted)]">
-                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') Vorsitz {{ $committee->chair?->name ?? 'offen' }}</span>
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') Vorsitz {{ $chair['name'] ?? 'offen' }}</span>
                     <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->cadence ?: 'kein Rhythmus hinterlegt' }}</span>
                     @if($committee->responsibleAgent)
                         <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->responsibleAgent->name }}</span>
@@ -73,18 +74,20 @@
                     @if($nodesAvailable)
                         <span class="inline-flex items-center gap-1.5">
                             @svg('heroicon-o-building-office-2', 'w-4 h-4 text-[color:var(--nx-faint)]')
-                            Verortung:
-                            @forelse($nodes as $node)
-                                <span class="text-[color:var(--nx-text)]">{{ $node->name }}</span>@if($node->type)<span class="text-xs text-[color:var(--nx-faint)]">{{ $node->type->name }}</span>@endif
-                            @empty
-                                <span>kein Knoten</span>
-                            @endforelse
+                            @if($node)
+                                Knoten in der Organisation:
+                                @if($nodeUrl)
+                                    <a href="{{ $nodeUrl }}" class="text-[color:var(--nx-text)] hover:underline">{{ $node->name }}</a>
+                                @else
+                                    <span class="text-[color:var(--nx-text)]">{{ $node->name }}</span>
+                                @endif
+                                @if($node->type)<span class="text-xs text-[color:var(--nx-faint)]">{{ $node->type->name }}</span>@endif
+                            @else
+                                <span class="text-[color:var(--nx-warning)]">Noch kein Knoten – Name und Mitglieder liegen vorübergehend im Book.</span>
+                            @endif
                         </span>
                         @if($canEdit)
-                            <button type="button" wire:click="startPlacing" class="text-xs underline hover:text-[color:var(--nx-text)]">{{ $nodes->isEmpty() ? 'In der Organisation verorten' : 'Umhängen' }}</button>
-                            @if($nodes->isNotEmpty())
-                                <button type="button" wire:click="unplace" wire:confirm="Verortung lösen?" class="text-xs underline hover:text-[color:var(--nx-danger)]">Lösen</button>
-                            @endif
+                            <button type="button" wire:click="startPlacing" class="text-xs underline hover:text-[color:var(--nx-text)]">{{ $node ? 'Anderen Knoten wählen' : 'Mit Gremien-Knoten verbinden' }}</button>
                         @endif
                     @endif
                 </div>
@@ -94,21 +97,25 @@
                             <x-nx-input-text name="nodeSearch" placeholder="Knoten suchen, z. B. Lenkungsausschuss" wire:model.live.debounce.300ms="nodeSearch" />
                             <x-nx-button variant="ghost" size="sm" wire:click="cancelPlacing">Abbrechen</x-nx-button>
                         </div>
+                        @error('placement')<p class="m-0 text-xs text-[color:var(--nx-danger)]">{{ $message }}</p>@enderror
                         @forelse($nodeCandidates as $cand)
                             <button type="button" wire:click="placeAt({{ $cand['id'] }})" class="flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-sm hover:bg-[color:var(--nx-hover)]">
                                 <span>{{ $cand['name'] }}</span><span class="text-xs text-[color:var(--nx-faint)]">{{ $cand['type'] }}</span>
                             </button>
                         @empty
-                            <p class="m-0 text-xs text-[color:var(--nx-faint)]">Keine passenden Knoten mit Schreibrecht.</p>
+                            <p class="m-0 text-xs text-[color:var(--nx-faint)]">Keine freien Gremien-Knoten mit Schreibrecht. Neue Gremien-Knoten legst du in der Organisation (z. B. unter „Governance“) oder beim Anlegen des Gremiums an.</p>
                         @endforelse
                     </div>
                 @endif
                 @if($committee->description)
                     <p class="m-0 max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-[color:var(--nx-text)]">{{ $committee->description }}</p>
-                @elseif($canEdit)
+                @elseif($canEdit && (! $node || $nodeWritable))
                     <button type="button" wire:click="openEdit" class="text-sm text-[color:var(--nx-muted)] underline hover:text-[color:var(--nx-text)]">
                         Zweck beschreiben: Wofür ist dieses Gremium da – und was gehört nicht hierher?
                     </button>
+                @endif
+                @if($node && $nodeUrl)
+                    <p class="m-0 text-xs text-[color:var(--nx-faint)]">Name, Beschreibung und Mitglieder gehören zum Knoten in der Organisation. <a href="{{ $nodeUrl }}" class="underline hover:text-[color:var(--nx-text)]">In der Organisation bearbeiten</a></p>
                 @endif
             </div>
 
@@ -252,35 +259,38 @@
                     <section class="space-y-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div class="max-w-2xl space-y-1">
-                                <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Mitglieder <span class="font-normal text-[color:var(--nx-faint)]">{{ $committee->members->count() }}</span></h2>
+                                <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Mitglieder <span class="font-normal text-[color:var(--nx-faint)]">{{ $members->count() }}</span></h2>
                                 <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
-                                    Wer am Tisch sitzt, bringt die Perspektive seines Bereichs ein. Der Vorsitz leitet und achtet auf die Haltung, die Protokollführung hält Beschlüsse fest. Agenten können mitarbeiten wie Menschen.
+                                    Wer am Tisch sitzt, bringt die Perspektive seines Bereichs ein. Der Vorsitz leitet und achtet auf die Haltung. Agenten können mitarbeiten wie Menschen.
+                                    @if($node) Mitglieder sind Beziehungen am Knoten („ist Teil von“, Vorsitz „führt an“, Agenten „ist aktiv in“) – auch Personen ohne Plattform-Konto. @endif
                                 </p>
                             </div>
-                            @if($canEdit)
+                            @if($canEdit && (! $node || $nodeWritable))
                                 <x-nx-button variant="secondary" size="sm" wire:click="openMember">@svg('heroicon-o-plus', 'w-4 h-4') Mitglied</x-nx-button>
                             @endif
                         </div>
                         <x-nx-card flush>
-                            @forelse($committee->members->sortBy(fn ($m) => array_search($m->role?->value, ['chair', 'secretary', 'member', 'guest'])) as $member)
-                                <div class="group flex items-center gap-3 border-b border-[color:var(--nx-line)] px-5 py-3 last:border-b-0" wire:key="member-{{ $member->id }}">
-                                    @svg($member->agent_id ? 'heroicon-o-cpu-chip' : 'heroicon-o-user', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)]')
+                            @forelse($members as $member)
+                                <div class="group flex items-center gap-3 border-b border-[color:var(--nx-line)] px-5 py-3 last:border-b-0" wire:key="member-{{ $member['key'] }}">
+                                    @svg($member['is_agent'] ? 'heroicon-o-cpu-chip' : 'heroicon-o-user', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)]')
                                     <span class="min-w-0 flex-1">
-                                        <span class="block truncate text-sm text-[color:var(--nx-text)]">{{ $member->user?->name ?? $member->agent?->name ?? '–' }}</span>
-                                        @if(isset($roleHelp[$member->role?->value]))
-                                            <span class="block truncate text-xs text-[color:var(--nx-faint)]">{{ $member->role?->label() }} {{ $roleHelp[$member->role->value] }}</span>
+                                        <span class="block truncate text-sm text-[color:var(--nx-text)]">{{ $member['name'] }}</span>
+                                        @if(isset($roleHelp[$member['role']]))
+                                            <span class="block truncate text-xs text-[color:var(--nx-faint)]">{{ $member['role_label'] }} {{ $roleHelp[$member['role']] }}</span>
+                                        @elseif(! $member['user_id'] && ! $member['agent_id'] && $member['source'] === 'organization')
+                                            <span class="block truncate text-xs text-[color:var(--nx-faint)]">ohne Plattform-Konto</span>
                                         @endif
                                     </span>
-                                    <x-nx-badge :variant="$member->role?->value === 'chair' ? 'accent' : 'neutral'">{{ $member->role?->label() }}</x-nx-badge>
-                                    @if($canEdit)
-                                        <button type="button" wire:click="removeMember({{ $member->id }})" wire:confirm="Mitglied entfernen?"
+                                    <x-nx-badge :variant="$member['role'] === 'chair' ? 'accent' : 'neutral'">{{ $member['role_label'] }}</x-nx-badge>
+                                    @if($canEdit && (! $node || $nodeWritable))
+                                        <button type="button" wire:click="removeMember('{{ $member['key'] }}')" wire:confirm="Aus dem Gremium nehmen?"
                                                 class="opacity-0 transition-opacity group-hover:opacity-100 text-[color:var(--nx-muted)] hover:text-[color:var(--nx-danger)]" title="Entfernen">
                                             @svg('heroicon-o-x-mark', 'w-4 h-4')
                                         </button>
                                     @endif
                                 </div>
                             @empty
-                                <p class="m-0 px-5 py-6 text-sm leading-relaxed text-[color:var(--nx-muted)]">Noch keine Mitglieder. Beginne mit Vorsitz und Protokollführung, dann die Verantwortlichen der Bereiche.</p>
+                                <p class="m-0 px-5 py-6 text-sm leading-relaxed text-[color:var(--nx-muted)]">Noch keine Mitglieder. Beginne mit dem Vorsitz, dann die Verantwortlichen der Bereiche.</p>
                             @endforelse
                         </x-nx-card>
                     </section>
@@ -306,16 +316,21 @@
     <x-nx-modal wire:model="showEdit" size="md">
         <x-slot name="header">Gremium bearbeiten</x-slot>
         <div class="space-y-4">
-            <x-nx-input-text name="form.name" label="Name" wire:model="form.name" required />
+            @if($node && ! $nodeWritable)
+                <p class="m-0 text-xs text-[color:var(--nx-muted)]">Name und Zweck liegen am Knoten „{{ $node->name }}“ – dafür fehlt dir das Schreibrecht in der Organisation.</p>
+            @elseif($node)
+                <p class="m-0 text-xs text-[color:var(--nx-muted)]">Name und Zweck werden am Knoten in der Organisation gespeichert.</p>
+            @endif
+            <x-nx-input-text name="form.name" label="Name" wire:model="form.name" required :disabled="$node && ! $nodeWritable" />
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <x-nx-input-select name="form.type" label="Typ" :options="$typeOptions" wire:model="form.type" />
                 <x-nx-input-select name="form.status" label="Status" :options="$statusOptions" wire:model="form.status" />
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <x-nx-input-text name="form.cadence" label="Rhythmus" wire:model="form.cadence" placeholder="z. B. monatlich" />
-                <x-nx-input-select name="form.chair_user_id" label="Vorsitz" :options="$userOptions" nullable="true" nullLabel="– offen –" wire:model="form.chair_user_id" />
             </div>
-            <x-nx-input-textarea name="form.description" label="Zweck" wire:model="form.description" rows="3" />
+            <x-nx-input-textarea name="form.description" label="Zweck" wire:model="form.description" rows="3" :disabled="$node && ! $nodeWritable" />
+            <p class="m-0 text-xs text-[color:var(--nx-faint)]">Den Vorsitz setzt du bei den Mitgliedern (Rolle „Vorsitz“).</p>
         </div>
         <x-slot name="footer">
             <div class="flex justify-end gap-3">
@@ -329,8 +344,14 @@
     <x-nx-modal wire:model="showMember" size="sm">
         <x-slot name="header">Mitglied hinzufügen</x-slot>
         <div class="space-y-4">
-            <x-nx-input-select name="memberForm.user_id" label="Person oder Agent" :options="$userOptions" nullable="true" nullLabel="– wählen –" wire:model="memberForm.user_id" required />
-            <x-nx-input-select name="memberForm.role" label="Rolle" :options="$roleOptions" wire:model="memberForm.role" />
+            @if($node)
+                <x-nx-input-select name="memberForm.entity_id" label="Person oder Agent (Knoten der Organisation)" :options="$personOptions" nullable="true" nullLabel="– wählen –" wire:model="memberForm.entity_id" required />
+                <x-nx-input-select name="memberForm.role" label="Rolle" :options="$nodeRoleOptions" wire:model="memberForm.role" />
+                <p class="m-0 text-xs text-[color:var(--nx-faint)]">Wird als Beziehung am Knoten „{{ $node->name }}“ gespeichert. Ein Vorsitz – ein neuer Vorsitz löst den bisherigen ab.</p>
+            @else
+                <x-nx-input-select name="memberForm.user_id" label="Person oder Agent" :options="$userOptions" nullable="true" nullLabel="– wählen –" wire:model="memberForm.user_id" required />
+                <x-nx-input-select name="memberForm.role" label="Rolle" :options="$roleOptions" wire:model="memberForm.role" />
+            @endif
         </div>
         <x-slot name="footer">
             <div class="flex justify-end gap-3">

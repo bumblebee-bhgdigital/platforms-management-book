@@ -19,7 +19,7 @@ class CreateMeetingAttendeeTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /management-book/meeting_attendees - Fügt einer Sitzung einen Teilnehmer hinzu. Pflicht: meeting_id und genau eines von user_id/agent_id. Optional: role (frei), attended (Default false; auch nachträglich/historisch setzbar). Keine automatische Übernahme der Gremiumsmitglieder.';
+        return 'POST /management-book/meeting_attendees - Fügt einer Sitzung einen Teilnehmer hinzu. Pflicht: meeting_id und genau eines von user_id/agent_id/organization_entity_id (Personen-Knoten, z. B. Gremiumsmitglied ohne Plattform-Konto). Optional: role (frei), attended (Default false; auch nachträglich/historisch setzbar). Keine automatische Übernahme – die Gremiumsmitglieder (management-book.committees.GET, Feld members) liefern je Person user_id/agent_id oder entity_id.';
     }
 
     public function getSchema(): array
