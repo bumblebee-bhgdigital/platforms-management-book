@@ -11,6 +11,7 @@ use Platform\Core\Contracts\HasDisplayName;
 use Platform\Core\Models\Concerns\HasEntityLinks;
 use Platform\ManagementBook\Enums\ManagementBookStatus;
 use Platform\ManagementBook\Enums\ReviewRhythm;
+use Platform\ManagementBook\Enums\RiskAppetite;
 use Symfony\Component\Uid\UuidV7;
 
 /**
@@ -45,6 +46,7 @@ class ManagementBook extends Model implements HasDisplayName
         'responsible_agent_user_id',
         'review_rhythm',
         'next_review_at',
+        'risk_appetite',
         'created_by_user_id',
     ];
 
@@ -52,6 +54,7 @@ class ManagementBook extends Model implements HasDisplayName
         'uuid' => 'string',
         'status' => ManagementBookStatus::class,
         'review_rhythm' => ReviewRhythm::class,
+        'risk_appetite' => RiskAppetite::class,
         'activated_at' => 'datetime',
         'valid_from' => 'date',
         'valid_until' => 'date',
@@ -135,6 +138,13 @@ class ManagementBook extends Model implements HasDisplayName
     public function milestones(): HasMany
     {
         return $this->hasMany(ManagementBookMilestone::class, 'management_book_id');
+    }
+
+    // ── Risiken (Risikomatrix) ───────────────────────────────────
+
+    public function risks(): HasMany
+    {
+        return $this->hasMany(ManagementBookRisk::class, 'management_book_id');
     }
 
     /**

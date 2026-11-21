@@ -32,7 +32,7 @@ class ManagementBookService
     /** Felder, die create()/update() aus $data übernehmen. */
     private const FIELDS = [
         'title', 'description', 'valid_from', 'valid_until', 'horizon_year',
-        'owner_user_id', 'responsible_agent_user_id', 'review_rhythm', 'next_review_at',
+        'owner_user_id', 'responsible_agent_user_id', 'review_rhythm', 'next_review_at', 'risk_appetite',
     ];
 
     // ── Lesen ────────────────────────────────────────────────────
@@ -296,6 +296,11 @@ class ManagementBookService
         if (isset($out['review_rhythm'])) {
             ReviewRhythm::tryFrom((string) $out['review_rhythm'])
                 ?? throw new ManagementBookException('review_rhythm muss einer von ' . implode(', ', ReviewRhythm::values()) . ' sein.');
+        }
+
+        if (isset($out['risk_appetite'])) {
+            \Platform\ManagementBook\Enums\RiskAppetite::tryFrom((string) $out['risk_appetite'])
+                ?? throw new ManagementBookException('risk_appetite muss einer von ' . implode(', ', \Platform\ManagementBook\Enums\RiskAppetite::values()) . ' sein.');
         }
 
         foreach (['valid_from', 'valid_until', 'next_review_at'] as $dateField) {

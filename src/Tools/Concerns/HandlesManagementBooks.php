@@ -80,6 +80,8 @@ trait HandlesManagementBooks
             'responsible_agent_user_id' => $book->responsible_agent_user_id,
             'review_rhythm' => $book->review_rhythm?->value,
             'next_review_at' => $book->next_review_at?->toDateString(),
+            'risk_appetite' => $book->risk_appetite?->value,
+            'risk_appetite_label' => $book->risk_appetite?->label(),
             'created_by_user_id' => $book->created_by_user_id,
             'nodes' => array_map(fn ($id) => ['entity_id' => $id, 'entity_name' => $names[$id] ?? null], $nodeIds),
             'created_at' => $book->created_at?->toIso8601String(),
@@ -100,6 +102,7 @@ trait HandlesManagementBooks
             'responsible_agent_user_id' => ['type' => 'integer', 'description' => 'Verantwortlicher Agent (User-ID eines Agent-Users, type ai_user).'],
             'review_rhythm' => ['type' => 'string', 'enum' => \Platform\ManagementBook\Enums\ReviewRhythm::values(), 'description' => 'Review-Rhythmus.'],
             'next_review_at' => ['type' => 'string', 'description' => 'Nächstes Review (YYYY-MM-DD).'],
+            'risk_appetite' => ['type' => 'string', 'enum' => \Platform\ManagementBook\Enums\RiskAppetite::values(), 'description' => 'Risikobereitschaft (Risiko-Skala, 5 Stufen): very_low, low, moderate, high, very_high.'],
         ];
     }
 }

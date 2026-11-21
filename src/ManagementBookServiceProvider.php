@@ -244,7 +244,7 @@ class ManagementBookServiceProvider extends ServiceProvider
             );
         }
         // Strategie-Entitäten erben die Rechte des Management Books
-        foreach (['StrategicDocument', 'Forecast', 'FocusArea', 'VisionImage', 'Obstacle', 'Milestone', 'MilestoneContribution'] as $name) {
+        foreach (['StrategicDocument', 'Forecast', 'FocusArea', 'VisionImage', 'Obstacle', 'Milestone', 'MilestoneContribution', 'Risk'] as $name) {
             Gate::policy(
                 'Platform\\ManagementBook\\Models\\ManagementBook' . $name,
                 'Platform\\ManagementBook\\Policies\\ManagementBook' . $name . 'Policy'
@@ -367,6 +367,10 @@ class ManagementBookServiceProvider extends ServiceProvider
             $registry->register(new \Platform\ManagementBook\Tools\ListMilestoneContributionsTool());
             $registry->register(new \Platform\ManagementBook\Tools\CreateMilestoneContributionTool());
             $registry->register(new \Platform\ManagementBook\Tools\DeleteMilestoneContributionTool());
+            $registry->register(new \Platform\ManagementBook\Tools\ListRisksTool());
+            $registry->register(new \Platform\ManagementBook\Tools\CreateRiskTool());
+            $registry->register(new \Platform\ManagementBook\Tools\UpdateRiskTool());
+            $registry->register(new \Platform\ManagementBook\Tools\DeleteRiskTool());
         } catch (\Throwable $e) {
             // ToolRegistry nicht verfügbar
         }
