@@ -2,57 +2,56 @@
     Das Book als Dokument: Kapitel in Lesereihenfolge (StrategicDocumentType::bookOrder()), je Kapitel Leitfrage,
     Markdown-Inhalt, Version. Bearbeiten legt eine neue Version an; der Verlauf bleibt einsehbar.
 --}}
-<div class="grid grid-cols-1 gap-8 lg:grid-cols-[14rem_minmax(0,1fr)]">
+<div class="grid grid-cols-1 gap-10 lg:grid-cols-[13rem_minmax(0,1fr)]">
 
     {{-- Inhaltsverzeichnis --}}
     <aside class="lg:sticky lg:top-4 lg:self-start">
-        <div class="mb-3">
+        <div class="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Inhalt</div>
+        <div class="mb-4">
             <div class="mb-1 flex items-center justify-between text-xs text-[color:var(--nx-muted)]">
                 <span>Kapitel geschrieben</span>
                 <span class="tabular-nums">{{ $filled }} / {{ $chapters->count() }}</span>
             </div>
-            <div class="h-1.5 overflow-hidden rounded-full bg-[color:var(--nx-accent-soft)]">
+            <div class="h-1 overflow-hidden rounded-full bg-[color:var(--nx-accent-soft)]">
                 <div class="h-full rounded-full bg-[color:var(--nx-accent)]" style="width: {{ $chapters->count() ? round($filled / $chapters->count() * 100) : 0 }}%"></div>
             </div>
         </div>
         <nav class="space-y-0.5">
-            @foreach($chapters as $c)
+            @foreach($chapters as $n => $c)
                 <a href="#chapter-{{ $c['type']->value }}"
                    class="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[color:var(--nx-muted)] no-underline transition-colors hover:bg-[color:var(--nx-hover)] hover:text-[color:var(--nx-text)]">
-                    @if(filled($c['doc']?->content))
-                        @svg('heroicon-s-check-circle', 'w-4 h-4 shrink-0 text-[color:var(--nx-success)]')
-                    @else
-                        <span class="h-4 w-4 shrink-0 rounded-full border border-dashed border-[color:var(--nx-line-strong)]"></span>
-                    @endif
+                    <span class="w-4 shrink-0 text-right text-xs tabular-nums text-[color:var(--nx-faint)]">{{ $n + 1 }}</span>
                     <span class="truncate">{{ $c['type']->label() }}</span>
+                    @if(filled($c['doc']?->content))
+                        @svg('heroicon-s-check-circle', 'ml-auto w-3.5 h-3.5 shrink-0 text-[color:var(--nx-success)]')
+                    @else
+                        <span class="ml-auto h-3.5 w-3.5 shrink-0 rounded-full border border-dashed border-[color:var(--nx-line-strong)]"></span>
+                    @endif
                 </a>
             @endforeach
         </nav>
-        <p class="mt-4 mb-0 text-xs leading-relaxed text-[color:var(--nx-faint)]">
-            Das Management Book erzeugt die Strategie nicht – es verdichtet sie. Stabil genug für Orientierung, veränderbar genug für Lernen.
-        </p>
     </aside>
 
     {{-- Dokument --}}
-    <article class="min-w-0 space-y-10">
-        <header class="border-b border-[color:var(--nx-line)] pb-6">
-            <div class="text-xs font-medium uppercase tracking-wide text-[color:var(--nx-faint)]">Management Book</div>
-            <h2 class="mt-1 mb-0 text-2xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $book->title }}</h2>
-            @if($book->horizon_year)
-                <p class="mt-1 mb-0 text-sm text-[color:var(--nx-muted)]">Orientierung mit Horizont {{ $book->horizon_year }}</p>
-            @endif
+    <article class="min-w-0">
+        <header class="max-w-[70ch] border-b border-[color:var(--nx-line)] pb-8">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Management Book{{ $book->horizon_year ? ' · Horizont ' . $book->horizon_year : '' }}</div>
+            <h2 class="mt-2 mb-0 text-3xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $book->title }}</h2>
+            <p class="mt-3 mb-0 text-[15px] leading-7 text-[color:var(--nx-muted)]">
+                Dieses Book verdichtet, wohin wir wollen und nach welcher Logik wir handeln. Es ist eine Momentaufnahme:
+                stabil genug für Orientierung, veränderbar genug für Lernen. Jede Änderung wird als neue Version festgehalten.
+            </p>
         </header>
 
         @foreach($chapters as $n => $c)
             @php $t = $c['type']; $doc = $c['doc']; @endphp
-            <section id="chapter-{{ $t->value }}" wire:key="chapter-{{ $t->value }}" class="scroll-mt-6">
+            <section id="chapter-{{ $t->value }}" wire:key="chapter-{{ $t->value }}" class="max-w-[70ch] scroll-mt-6 border-b border-[color:var(--nx-line)] py-10 last:border-0">
                 <div class="flex items-start justify-between gap-4">
                     <div class="min-w-0">
-                        <div class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[color:var(--nx-faint)]">
-                            @svg($t->icon(), 'w-3.5 h-3.5') Kapitel {{ $n + 1 }}
+                        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">
+                            @svg($t->icon(), 'w-3.5 h-3.5') Kapitel {{ $n + 1 }} · {{ $t->question() }}
                         </div>
-                        <h3 class="mt-1 mb-0 text-lg font-semibold text-[color:var(--nx-text)]">{{ $t->label() }}</h3>
-                        <p class="mt-0.5 mb-0 text-sm italic text-[color:var(--nx-muted)]">{{ $t->question() }}</p>
+                        <h3 class="mt-2 mb-0 text-xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $doc?->title ?: $t->label() }}</h3>
                     </div>
                     <div class="flex shrink-0 items-center gap-1">
                         @if($doc)
@@ -60,7 +59,7 @@
                                 @svg('heroicon-o-clock', 'w-4 h-4') v{{ $doc->version }}
                             </x-nx-button>
                         @endif
-                        @if($canEdit)
+                        @if($canEdit && filled($doc?->content))
                             <x-nx-button variant="ghost" size="sm" icon wire:click="edit('{{ $t->value }}')" title="Bearbeiten">
                                 @svg('heroicon-o-pencil-square', 'w-4 h-4')
                             </x-nx-button>
@@ -68,19 +67,25 @@
                     </div>
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-4">
                     @if(filled($doc?->content))
-                        <x-nx-prose class="text-[15px] leading-relaxed">{!! \Illuminate\Support\Str::markdown($doc->content, ['html_input' => 'escape', 'allow_unsafe_links' => false]) !!}</x-nx-prose>
-                        <p class="mt-3 mb-0 text-xs text-[color:var(--nx-faint)]">
+                        <x-nx-prose class="text-[15px] leading-7">{!! \Illuminate\Support\Str::markdown($doc->content, ['html_input' => 'escape', 'allow_unsafe_links' => false]) !!}</x-nx-prose>
+                        <p class="mt-4 mb-0 text-xs text-[color:var(--nx-faint)]">
                             Version {{ $doc->version }} · gültig seit {{ $doc->valid_from?->format('d.m.Y') ?? '–' }}
                             @if($doc->created_by && isset($authors[$doc->created_by])) · {{ $authors[$doc->created_by] }} @endif
                             @if($doc->change_note) · „{{ $doc->change_note }}“ @endif
                         </p>
                     @else
-                        <div class="rounded-[8px] border border-dashed border-[color:var(--nx-line-strong)] px-4 py-5 text-sm text-[color:var(--nx-muted)]">
-                            Noch nicht geschrieben.
+                        <div class="rounded-[8px] border border-dashed border-[color:var(--nx-line-strong)] px-5 py-5">
+                            <p class="m-0 text-[15px] leading-7 text-[color:var(--nx-muted)]">{{ $hints[$t->value] ?? $t->question() }}</p>
                             @if($canEdit)
-                                <button type="button" wire:click="edit('{{ $t->value }}')" class="ml-1 text-[color:var(--nx-text)] underline">Kapitel schreiben</button>
+                                <div class="mt-3">
+                                    <x-nx-button variant="secondary" size="sm" wire:click="edit('{{ $t->value }}')">
+                                        @svg('heroicon-o-pencil-square', 'w-4 h-4') Kapitel schreiben
+                                    </x-nx-button>
+                                </div>
+                            @else
+                                <p class="mt-2 mb-0 text-xs text-[color:var(--nx-faint)]">Noch nicht geschrieben.</p>
                             @endif
                         </div>
                     @endif
@@ -96,6 +101,9 @@
             <div class="text-sm italic text-[color:var(--nx-muted)]">{{ $editLabel?->question() }}</div>
         </x-slot>
         <div class="space-y-4">
+            @if($editLabel && isset($hints[$editLabel->value]))
+                <p class="m-0 rounded-[6px] bg-[color:var(--nx-accent-soft)] px-3 py-2 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $hints[$editLabel->value] }}</p>
+            @endif
             <x-nx-input-text name="form.title" label="Überschrift" wire:model="form.title" required />
             <x-nx-input-textarea name="form.content" label="Inhalt" hint="Markdown" wire:model="form.content" rows="14" class="font-mono text-[13px]" />
             <x-nx-input-text name="form.change_note" label="Änderungsnotiz" hint="optional" placeholder="Warum ändert sich das Kapitel?" wire:model="form.change_note" />

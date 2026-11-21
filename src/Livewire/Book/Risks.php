@@ -269,10 +269,12 @@ class Risks extends Component
             $selectedEntity = ! empty($this->form['organization_entity_id'])
                 ? OrganizationEntity::find((int) $this->form['organization_entity_id'])
                 : null;
+            // Vorschläge erst beim Öffnen sichtbar (Alpine); aktive Knoten zuerst, Knotentyp als Hinweis, max. 8
             $entityOptions = OrganizationEntity::query()
                 ->whereIn('team_id', $teamIds)
+                ->with('type:id,name')
                 ->when(trim($this->entitySearch) !== '', fn ($q) => $q->where('name', 'like', '%' . trim($this->entitySearch) . '%'))
-                ->orderBy('name')->limit(12)->get(['id', 'name']);
+                ->orderByDesc('is_active')->orderBy('name')->limit(8)->get(['id', 'name', 'is_active', 'entity_type_id']);
             $members = \Platform\Core\Models\User::query()
                 ->whereHas('teams', fn ($q) => $q->whereIn('teams.id', $teamIds))
                 ->orderBy('name')->get(['id', 'name']);

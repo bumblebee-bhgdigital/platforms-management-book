@@ -14,8 +14,27 @@
         'map' => ['label' => 'Transformation Map', 'icon' => 'heroicon-o-map', 'count' => $map['total']],
         'regnose' => ['label' => 'Regnose & Forecasts', 'icon' => 'heroicon-o-arrow-uturn-left', 'count' => $forecasts->count()],
     ];
+    // Einstieg je Unterbereich: was es ist, wozu, wie es gelingt
+    $intros = [
+        'focus' => [
+            'title' => 'Wenige Themen, die wirklich tragen',
+            'text' => 'Ein Fokusraum bündelt ein Thema, das über das laufende Geschäftsjahr hinaus wichtig ist. Je Raum beschreibt ihr, woran man den Erfolg erkennt (Zielbilder), was heute im Weg steht (Hindernisse) und welche Etappen dorthin führen (Meilensteine).',
+            'tip' => 'Gut gemacht: 5–7 Räume, jedes Zielbild beobachtbar formuliert, jeder Meilenstein mit Quartal. Und bewusst entscheiden, was nicht Fokus ist.',
+        ],
+        'map' => [
+            'title' => 'Der Weg über die Zeit',
+            'text' => 'Die Transformation Map legt alle Meilensteine auf eine Zeitachse – eine Bahn je Fokusraum. So wird sichtbar, ob der Weg realistisch verteilt ist, wo sich Etappen ballen und was überfällig ist.',
+            'tip' => 'Gut gemacht: Jeder Waypoint hat ein Quartal. Überfällige Meilensteine nicht verstecken, sondern im Lenkungsausschuss besprechen: Was hindert uns?',
+        ],
+        'regnose' => [
+            'title' => 'Aus der Zukunft zurückdenken',
+            'text' => 'Eine Regnose beschreibt den Zustand im Zieljahr so konkret, dass man ihn sehen könnte – und denkt von dort rückwärts: Welche Fähigkeiten, Strukturen und Entscheidungen braucht es heute? Fokusräume können einer Regnose zugeordnet werden.',
+            'tip' => 'Gut gemacht: keine Floskel wie „Marktführer werden“, sondern ein Bild, das sich beobachten lässt. Jede Überarbeitung wird als neue Version festgehalten.',
+        ],
+    ];
+    $intro = $intros[$section] ?? $intros['focus'];
 @endphp
-<div class="space-y-6">
+<div class="space-y-8">
     {{-- Kennzahlen --}}
     <x-nx-stat-grid :cols="4">
         <x-nx-stat label="Fokusräume" :value="$focusAreas->count()" icon="heroicon-o-squares-2x2"
@@ -48,6 +67,18 @@
                 <x-nx-button variant="primary" wire:click="openFocusArea">@svg('heroicon-o-plus', 'w-4 h-4') Fokusraum</x-nx-button>
             @endif
         @endif
+    </div>
+
+    {{-- Einstieg in den Unterbereich --}}
+    <div class="grid gap-4 rounded-[10px] border border-[color:var(--nx-line)] bg-[color:var(--nx-bg)] px-5 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        <div>
+            <div class="text-base font-semibold text-[color:var(--nx-text)]">{{ $intro['title'] }}</div>
+            <p class="mt-1 mb-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $intro['text'] }}</p>
+        </div>
+        <div class="flex gap-2 text-sm leading-relaxed text-[color:var(--nx-muted)] lg:border-l lg:border-[color:var(--nx-line)] lg:pl-4">
+            @svg('heroicon-o-light-bulb', 'mt-0.5 w-4 h-4 shrink-0 text-[color:var(--nx-faint)]')
+            <span>{{ $intro['tip'] }}</span>
+        </div>
     </div>
 
     @switch($section)

@@ -193,6 +193,8 @@ class Show extends Component
             'tabs' => self::TABS,
             'activeTab' => array_key_exists($this->tab, self::TABS) ? $this->tab : 'overview',
             'linkCandidates' => $this->linkCandidates(),
+            'firstSteps' => app(\Platform\ManagementBook\Services\BookInsights::class)->firstSteps($book),
+            'canEdit' => Gate::allows('update', $book),
             'rhythmOptions' => array_map(fn (ReviewRhythm $r) => ['value' => $r->value, 'label' => $r->label()], ReviewRhythm::cases()),
         ])->layout('platform::layouts.app');
     }

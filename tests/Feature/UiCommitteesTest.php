@@ -39,19 +39,44 @@ class UiCommitteesTest extends TestCase
     {
         $d = $this->seedBook();
         $this->get(route('management-book.books.show', $d['book']) . '?tab=committees')->assertOk()
-            ->assertSee('Lenkungsausschuss')->assertSee('Strategiemeeting GF')->assertSee('1 offen · 1 überfällig');
+            ->assertSee('Lenkungsausschuss')->assertSee('Strategiemeeting GF')->assertSee('1 offen · 1 überfällig')
+            ->assertSee('Richtung geben, Zusammenspiel regulieren')->assertSee('Nächste Sitzung');
 
         $this->get(route('management-book.committees.show', $d['committee']))->assertOk()
             ->assertSee('Lokal vor übergreifend')->assertSee('LA Dezember')->assertSee('LA Oktober')
-            ->assertSee('Zusatzschicht im Dezember')->assertSee('handlungsfähig')->assertSee('Vorsitz');
+            ->assertSee('Zusatzschicht im Dezember')->assertSee('handlungsfähig')->assertSee('Vorsitz')
+            ->assertSee('Gehört das hier hin?')->assertSee('Plane den Rhythmus')
+            ->assertSee('Ein Beschluss ist erst wirksam')->assertSee('Vertiefen in der Academy');
 
         $this->get(route('management-book.meetings.show', $d['past']))->assertOk()
             ->assertSee('Kapazität Dezember')->assertSee('Was wollten wir erreichen?')->assertSee('Drei Großaufträge liefern')
             ->assertSee('Handlungsfähiger als vorher')->assertSee('Zusatzschicht im Dezember')->assertSee('Freigegeben')
             ->assertSee('Kapazitätsplanung')->assertSee('Gremiumsmitglieder übernehmen')
-            ->assertSee('Ohne Antwort auf 4a droht Mikromanagement'); // Punkt 2 ohne Leitfaden
+            ->assertSee('Ohne Antwort auf 4a droht Mikromanagement') // Punkt 2 ohne Leitfaden
+            ->assertSee('Jetzt: Nachbereiten')->assertSee('Haltung im LA')->assertSee('Vom Statusbericht zur Regulation');
 
-        $this->get(route('management-book.meetings.show', $d['next']))->assertOk()->assertSee('Personalrisiko');
+        $this->get(route('management-book.meetings.show', $d['next']))->assertOk()->assertSee('Personalrisiko')
+            ->assertSee('Jetzt: Vorbereiten');
+    }
+
+    public function test_empty_committees_offer_presets(): void
+    {
+        $d = $this->seedBook();
+        $book2 = app(\Platform\ManagementBook\Services\ManagementBookService::class)->create($d['user'], $d['team'], ['title' => 'Leeres Book']);
+        $this->get(route('management-book.books.show', $book2) . '?tab=committees')->assertOk()
+            ->assertSee('Noch keine Gremien')->assertSee('Strategiemeeting GF anlegen')->assertSee('Lenkungsausschuss anlegen');
+
+        $c = $this->makeComponent(Committees::class, [$book2->id]);
+        $c->openCreate('steering_committee');
+        $this->assertTrue($c->showCreate);
+        $this->assertSame('Lenkungsausschuss', $c->form['name']);
+        $this->assertSame('steering_committee', $c->form['type']);
+        $this->assertSame('monatlich', $c->form['cadence']);
+        $c->openCreate('strategy_meeting');
+        $this->assertSame('strategy_meeting', $c->form['type']);
+        $c->openCreate('unbekannt');
+        $this->assertSame('', $c->form['name'], 'unbekannter Vorschlag = leeres Formular');
+        $this->assertSame(0, \Platform\ManagementBook\Models\ManagementBookCommittee::where('management_book_id', $book2->id)->count(), 'keine Automatik');
     }
 
     public function test_committee_actions(): void

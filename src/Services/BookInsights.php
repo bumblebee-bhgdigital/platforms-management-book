@@ -14,6 +14,7 @@ use Platform\ManagementBook\Enums\RiskLevel;
 use Platform\ManagementBook\Enums\RiskStatus;
 use Platform\ManagementBook\Enums\StrategicDocumentType;
 use Platform\ManagementBook\Models\ManagementBook;
+use Platform\ManagementBook\Models\ManagementBookAgendaItem;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
 use Platform\ManagementBook\Models\ManagementBookDecision;
 use Platform\ManagementBook\Models\ManagementBookFocusArea;
@@ -124,6 +125,46 @@ class BookInsights
         $insights['cycle'] = $this->cycle($book, $insights, $committees, $meetings, $milestones);
 
         return $insights;
+    }
+
+    /**
+     * „Erste Schritte“ eines Books: was für ein arbeitsfähiges Book vorhanden sein sollte.
+     * Reine Anzeige aus den Daten, keine Automatik. Je Schritt: key, label, hint, done, tab.
+     *
+     * @return array<int,array{key:string,label:string,hint:string,done:bool,tab:string}>
+     */
+    public function firstSteps(ManagementBook $book): array
+    {
+        $nodeIds = app(\Platform\ManagementBook\Services\ManagementBookService::class)->nodeIds($book);
+        $docs = ManagementBookStrategicDocument::query()->where('management_book_id', $book->id)->active()->get()
+            ->keyBy(fn ($d) => $d->type instanceof StrategicDocumentType ? $d->type->value : (string) $d->type);
+        $filled = fn (StrategicDocumentType $t) => filled($docs->get($t->value)?->content);
+        $focusAreas = ManagementBookFocusArea::query()->where('management_book_id', $book->id)->count();
+        $ratedRisks = ManagementBookRisk::query()->where('management_book_id', $book->id)->whereNotNull('score')->count();
+        $committees = ManagementBookCommittee::query()->where('management_book_id', $book->id)->get();
+        $steering = $committees->filter(fn ($c) => $c->type === CommitteeType::STEERING_COMMITTEE);
+        $guidedItem = $steering->isNotEmpty() && ManagementBookAgendaItem::query()
+            ->whereIn('meeting_id', ManagementBookMeeting::query()->whereIn('committee_id', $steering->pluck('id'))->select('id'))
+            ->where(fn ($q) => $q->whereNotNull('goal')->orWhereNotNull('obstacle')->orWhereNotNull('system_support'))
+            ->exists();
+
+        return [
+            ['key' => 'node', 'label' => 'Mit einem Knoten verknüpfen', 'tab' => 'overview', 'done' => $nodeIds !== [],
+                'hint' => 'Für welche Einheit gilt dieses Book? Oben im Kopf über „verknüpfen“.'],
+            ['key' => 'mission_vision', 'label' => 'Mission und Vision formulieren', 'tab' => 'book',
+                'done' => $filled(StrategicDocumentType::MISSION) && $filled(StrategicDocumentType::VISION),
+                'hint' => 'Warum gibt es uns, und welchen Zustand wollen wir in 5–10 Jahren sehen?'],
+            ['key' => 'current_situation', 'label' => 'Standort beschreiben', 'tab' => 'book', 'done' => $filled(StrategicDocumentType::CURRENT_SITUATION),
+                'hint' => 'Wo stehen wir heute? Ehrlich, damit die Strategie an der Wirklichkeit ansetzt.'],
+            ['key' => 'focus_areas', 'label' => '5–7 Fokusräume festlegen', 'tab' => 'strategy', 'done' => $focusAreas >= 5,
+                'hint' => $focusAreas > 0 ? "Bisher {$focusAreas}. Wenige Themen, bewusst gewählt." : 'Wenige Themen, die über das Geschäftsjahr hinaus tragen.'],
+            ['key' => 'risks', 'label' => 'Risiken bewerten', 'tab' => 'risks', 'done' => $ratedRisks > 0 && $book->risk_appetite !== null,
+                'hint' => 'Risiken mit E × A erfassen und die Risikobereitschaft des Books festlegen.'],
+            ['key' => 'steering', 'label' => 'Lenkungsausschuss einrichten', 'tab' => 'committees', 'done' => $steering->isNotEmpty(),
+                'hint' => 'Der Ort, an dem geklärt wird, was zwischen den Einheiten klemmt.'],
+            ['key' => 'first_meeting', 'label' => 'Erste Sitzung mit Leitfaden', 'tab' => 'committees', 'done' => $guidedItem,
+                'hint' => 'Mindestens ein Punkt mit den vier Fragen: Ziel, Beobachtung, Hindernis, Unterstützung.'],
+        ];
     }
 
     /** @param Collection<int,ManagementBookRisk> $risks */

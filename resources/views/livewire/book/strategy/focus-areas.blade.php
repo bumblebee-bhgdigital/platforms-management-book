@@ -6,31 +6,52 @@
 @endif
 
 @if($focusAreas->isEmpty())
-    <x-nx-card>
-        <x-nx-empty icon="heroicon-o-squares-2x2">
-            <span class="block text-sm text-[color:var(--nx-muted)]">Noch keine Fokusräume.</span>
-            <span class="mt-1 block max-w-md">Fokusplanung heißt verzichten: Wählt 5–7 Themen, die über das Geschäftsjahr hinaus tragen – und entscheidet bewusst, was wegfällt. Je Fokusraum beschreibt ihr Zielbilder, Hindernisse und Meilensteine.</span>
+    <x-nx-card class="p-6">
+        <div class="mx-auto max-w-3xl space-y-5">
+            <div class="text-center">
+                @svg('heroicon-o-squares-2x2', 'mx-auto w-8 h-8 text-[color:var(--nx-faint)]')
+                <div class="mt-2 text-base font-semibold text-[color:var(--nx-text)]">Noch keine Fokusräume</div>
+                <p class="mx-auto mt-1 mb-0 max-w-xl text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                    Fokusplanung heißt verzichten: Wählt 5–7 Themen, die über das Geschäftsjahr hinaus tragen, und entscheidet bewusst, was wegfällt. So sieht ein Fokusraum aus:
+                </p>
+            </div>
+            <div class="overflow-hidden rounded-[10px] border border-[color:var(--nx-line)] bg-[color:var(--nx-bg)] text-left">
+                <div class="border-b border-[color:var(--nx-line)] px-5 py-3 text-base font-semibold text-[color:var(--nx-text)]">Eventgeschäft ausbauen</div>
+                <div class="grid grid-cols-1 divide-y divide-[color:var(--nx-line)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                    @foreach([
+                        ['Zielbild', 'Woran erkennen wir, dass wir angekommen sind?', 'Unsere Locations sind an 200 Tagen ausgebucht'],
+                        ['Hindernis', 'Was steht dem Zielbild heute im Weg?', 'Personalengpass in der Küche'],
+                        ['Meilenstein', 'Welche Etappe führt den Weg zurück in die Gegenwart?', 'Zweite Küche in Betrieb (Q2/2027)'],
+                    ] as [$label, $q, $example])
+                        <div class="p-4">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">{{ $label }}</div>
+                            <div class="mt-1 text-xs leading-snug text-[color:var(--nx-muted)]">{{ $q }}</div>
+                            <div class="mt-3 text-sm text-[color:var(--nx-text)]">{{ $example }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
             @if($canEdit)
-                <x-slot name="action"><x-nx-button variant="secondary" wire:click="openFocusArea">Ersten Fokusraum anlegen</x-nx-button></x-slot>
+                <div class="text-center"><x-nx-button variant="primary" wire:click="openFocusArea">@svg('heroicon-o-plus', 'w-4 h-4') Ersten Fokusraum anlegen</x-nx-button></div>
             @endif
-        </x-nx-empty>
+        </div>
     </x-nx-card>
 @else
-    <div class="space-y-4">
+    <div class="space-y-6">
         @foreach($focusAreas as $fa)
             <x-nx-card flush wire:key="fa-{{ $fa->id }}">
                 {{-- Kopf --}}
-                <div class="flex items-start justify-between gap-3 border-b border-[color:var(--nx-line)] px-4 py-3">
+                <div class="flex items-start justify-between gap-3 border-b border-[color:var(--nx-line)] px-5 py-4">
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] bg-[color:var(--nx-accent-soft)] text-xs font-semibold tabular-nums text-[color:var(--nx-muted)]">{{ $loop->iteration }}</span>
-                            <h3 class="m-0 truncate text-base font-semibold text-[color:var(--nx-text)]">{{ $fa->title }}</h3>
+                            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[color:var(--nx-accent-soft)] text-sm font-semibold tabular-nums text-[color:var(--nx-muted)]">{{ $loop->iteration }}</span>
+                            <h3 class="m-0 truncate text-lg font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $fa->title }}</h3>
                             @if($fa->forecast)
                                 <x-nx-badge variant="neutral">@svg('heroicon-o-arrow-uturn-left', 'w-3 h-3') {{ $fa->forecast->title }}</x-nx-badge>
                             @endif
                         </div>
                         @if($fa->description)
-                            <p class="mt-1 mb-0 text-sm text-[color:var(--nx-muted)] whitespace-pre-line">{{ $fa->description }}</p>
+                            <p class="mt-1.5 mb-0 max-w-3xl text-sm leading-relaxed text-[color:var(--nx-muted)] whitespace-pre-line">{{ $fa->description }}</p>
                         @endif
                     </div>
                     @if($canEdit)
@@ -57,7 +78,7 @@
                             };
                             $question = $fa->{$cfg['question']} ?: $cfg['default_question'];
                         @endphp
-                        <div class="flex min-w-0 flex-col p-4">
+                        <div class="flex min-w-0 flex-col p-5">
                             <div class="mb-2 flex items-center justify-between gap-2">
                                 <span class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--nx-muted)]">
                                     @svg($cfg['icon'], 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $cfg['plural'] }}
@@ -70,7 +91,7 @@
                                     </button>
                                 @endif
                             </div>
-                            <p class="mb-3 mt-0 text-xs italic text-[color:var(--nx-faint)]">{{ $question }}</p>
+                            <p class="mb-3 mt-0 text-sm leading-snug text-[color:var(--nx-muted)]">{{ $question }}</p>
 
                             <ul class="m-0 list-none space-y-1 p-0">
                                 @forelse($items as $item)
@@ -131,7 +152,9 @@
                                         @endif
                                     </li>
                                 @empty
-                                    <li class="px-2 py-1.5 text-xs text-[color:var(--nx-faint)]">Noch keine {{ $cfg['plural'] }}.</li>
+                                    <li class="rounded-[6px] border border-dashed border-[color:var(--nx-line)] px-3 py-2 text-xs leading-relaxed text-[color:var(--nx-faint)]">
+                                        Noch keine {{ $cfg['plural'] }}.@if($canEdit) <button type="button" wire:click="openItem('{{ $kind }}', {{ $fa->id }})" class="underline hover:text-[color:var(--nx-text)]">Jetzt anlegen</button>@endif
+                                    </li>
                                 @endforelse
                             </ul>
                         </div>

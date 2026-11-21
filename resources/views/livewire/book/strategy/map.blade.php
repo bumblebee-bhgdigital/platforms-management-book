@@ -20,8 +20,8 @@
 @if($focusAreas->isEmpty() || $map['total'] === 0)
     <x-nx-card>
         <x-nx-empty icon="heroicon-o-map">
-            <span class="block text-sm text-[color:var(--nx-muted)]">Die Transformation Map ist noch leer.</span>
-            <span class="mt-1 block max-w-md">Sie entsteht aus den Meilensteinen der Fokusräume: Jeder Meilenstein mit Zieljahr und Quartal wird zum Waypoint auf dem Weg vom Zukunftsbild zurück in die Gegenwart.</span>
+            <span class="block text-base font-semibold text-[color:var(--nx-text)]">Die Transformation Map ist noch leer</span>
+            <span class="mx-auto mt-2 block max-w-lg text-sm leading-relaxed text-[color:var(--nx-muted)]">Sie entsteht aus den Meilensteinen der Fokusräume: Jeder Meilenstein mit Zieljahr und Quartal wird zum Waypoint auf dem Weg vom Zukunftsbild zurück in die Gegenwart.</span>
             @if($canEdit)
                 <x-slot name="action"><x-nx-button variant="secondary" wire:click="setSection('focus')">Zu den Fokusräumen</x-nx-button></x-slot>
             @endif
@@ -38,9 +38,9 @@
                 </div>
                 <span class="tabular-nums font-medium text-[color:var(--nx-text)]">{{ $map['reached_percent'] }} %</span>
             </div>
-            <div class="flex flex-wrap items-center gap-3 text-xs text-[color:var(--nx-muted)]">
+            <div class="flex flex-wrap items-center gap-4 text-sm text-[color:var(--nx-muted)]">
                 @foreach([['Geplant', 'var(--nx-muted)'], ['In Arbeit', 'var(--nx-info)'], ['Erreicht', 'var(--nx-success)'], ['Überfällig', 'var(--nx-warning)'], ['Verfehlt', 'var(--nx-danger)']] as [$lbl, $c])
-                    <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full" style="background: {{ $c }}"></span>{{ $lbl }}</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full" style="background: {{ $c }}"></span>{{ $lbl }}</span>
                 @endforeach
             </div>
         </div>
@@ -83,7 +83,7 @@
 
                 {{-- Bahnen --}}
                 @foreach($focusAreas as $fa)
-                    <div class="sticky left-0 z-10 flex items-start gap-2 border-b border-[color:var(--nx-line)] bg-[color:var(--nx-surface)] px-4 py-3" wire:key="lane-{{ $fa->id }}">
+                    <div class="sticky left-0 z-10 flex items-start gap-2 border-b border-[color:var(--nx-line)] bg-[color:var(--nx-surface)] px-5 py-3" wire:key="lane-{{ $fa->id }}">
                         <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--nx-accent-soft)] text-[11px] font-semibold tabular-nums text-[color:var(--nx-muted)]">{{ $loop->iteration }}</span>
                         <span class="text-sm font-medium text-[color:var(--nx-text)]">{{ $fa->title }}</span>
                     </div>
@@ -108,5 +108,5 @@
             </div>
         </div>
     </x-nx-card>
-    <p class="m-0 text-xs text-[color:var(--nx-faint)]">Meilensteine nur mit Zieljahr stehen im Q4 des Jahres. Überfällig heißt: geplant oder in Arbeit, aber der Zielzeitraum ist vorbei.</p>
+    <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">So liest man die Map: Jede Zeile ist ein Fokusraum, jede Spalte ein Quartal, die hervorgehobene Spalte ist heute. Meilensteine nur mit Zieljahr stehen im Q4 des Jahres. Überfällig heißt: geplant oder in Arbeit, aber der Zielzeitraum ist vorbei – ein Thema für den Lenkungsausschuss.</p>
 @endif

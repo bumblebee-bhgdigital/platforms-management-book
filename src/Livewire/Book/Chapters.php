@@ -72,6 +72,19 @@ class Chapters extends Component
         $this->showHistory = true;
     }
 
+    /** Was in ein Kapitel gehört (Hinweis für leere Kapitel und im Editor). */
+    public const HINTS = [
+        'origin' => 'Woher kommen wir? Gründung, prägende Entscheidungen und Wendepunkte, auf die wir stolz sind – und was wir daraus gelernt haben.',
+        'current_situation' => 'Wo stehen wir heute? Markt, Kunden, Zahlen, Stärken und offene Flanken – ehrlich, so wie es sich von innen und außen anfühlt.',
+        'mission' => 'Warum gibt es uns? Ein, zwei Sätze, die auch in zehn Jahren noch stimmen: für wen wir da sind und welchen Unterschied wir machen.',
+        'vision' => 'Wohin wollen wir? Ein Zukunftsbild, das man sehen kann – ein beobachtbarer Zustand in fünf bis zehn Jahren, keine Floskel wie „Marktführer werden“.',
+        'priorities' => 'Welche Prioritäten gelten? Was hat Vorrang, wenn Ressourcen knapp werden – und was lassen wir bewusst weg?',
+        'business_fields' => 'Welche Bedeutung hat welches Geschäftsfeld? Was trägt heute, was soll wachsen, was läuft aus – und warum?',
+        'principles' => 'Nach welchen Grundsätzen führen und entscheiden wir? Zum Beispiel: Hilfe statt Macht, lokal vor übergreifend, Eskalation ist professionell.',
+        'capabilities' => 'Welche Fähigkeiten müssen wir aufbauen? Was wir können müssen, um die Vision zu erreichen, und was uns heute noch fehlt.',
+        'collaboration' => 'Was heißt gute Zusammenarbeit? Wie wir miteinander, mit Kunden und mit Partnern umgehen – konkret genug, um sich daran messen zu lassen.',
+    ];
+
     public function render()
     {
         $book = $this->book();
@@ -102,6 +115,7 @@ class Chapters extends Component
             'editLabel' => $this->editType ? StrategicDocumentType::from($this->editType) : null,
             'historyLabel' => $this->historyType ? StrategicDocumentType::from($this->historyType) : null,
             'versions' => $versions,
+            'hints' => self::HINTS,
         ]);
     }
 }

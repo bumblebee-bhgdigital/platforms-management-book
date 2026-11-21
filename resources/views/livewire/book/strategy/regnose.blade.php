@@ -1,13 +1,14 @@
 {{-- Regnose & Forecasts: Zukunftsbilder mit Zieljahr, aktuelle Version, Historie, zugeordnete Fokusräume. --}}
-<x-nx-callout variant="info" icon="heroicon-o-arrow-uturn-left" title="Aus der Zukunft zurückdenken">
-    Eine Regnose beschreibt einen beobachtbaren Zustand im Zieljahr – nicht „Marktführer werden“, sondern woran man ihn sehen würde. Von dort aus wird rückwärts gedacht: Fähigkeiten, Strukturen, Verhalten, die heutige Entscheidung.
-</x-nx-callout>
 
 @if($forecasts->isEmpty())
     <x-nx-card>
         <x-nx-empty icon="heroicon-o-arrow-uturn-left">
-            <span class="block text-sm text-[color:var(--nx-muted)]">Noch keine Regnose.</span>
-            <span class="mt-1 block max-w-md">Beschreibt das Zukunftsbild für das Zieljahr so konkret, dass man es sehen kann. Jede Überarbeitung wird als neue Version festgehalten.</span>
+            <span class="block text-base font-semibold text-[color:var(--nx-text)]">Noch keine Regnose</span>
+            <span class="mx-auto mt-2 block max-w-lg text-sm leading-relaxed text-[color:var(--nx-muted)]">Wie sieht es 2030 aus, wenn alles gelungen ist? Beschreibe einen beobachtbaren Zustand, keine Floskel wie „Marktführer werden“.</span>
+            <span class="mx-auto mt-3 block max-w-lg rounded-[8px] border border-[color:var(--nx-line)] bg-[color:var(--nx-bg)] px-4 py-3 text-left text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Beispiel</span>
+                „2030 buchen Unternehmen im Rheinland ihre Events zuerst bei uns. Unsere drei Locations sind an 200 Tagen ausgelastet, das Eventteam plant eigenständig, und Stammkunden kommen ohne Akquise wieder.“
+            </span>
             @if($canEdit)
                 <x-slot name="action"><x-nx-button variant="secondary" wire:click="openForecast">Erste Regnose anlegen</x-nx-button></x-slot>
             @endif
