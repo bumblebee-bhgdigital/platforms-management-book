@@ -1,6 +1,6 @@
 {{--
-    Übersicht aller Management Books (nx-Design-System).
-    Shell: x-ui-page*; Inhalt: x-nx-* + var(--nx-*). Datenform "gleichförmige Datensätze" -> Tabelle.
+    Cockpit über alle sichtbaren Management Books (nx-Design-System): Kennzahlen, nächste Sitzungen, offene Beschlüsse,
+    Top-Risiken (BookInsights::forBooks), darunter alle Books als Tabelle (gleichförmige Datensätze).
 --}}
 
 <x-ui-page>
@@ -22,12 +22,95 @@
     </x-slot>
 
     <x-ui-page-container width="contained" spacing="space-y-6">
-        <x-nx-stat-grid :cols="4">
-            <x-nx-stat label="Books gesamt" :value="$stats['total']" icon="heroicon-o-book-open" />
-            <x-nx-stat label="Aktiv" :value="$stats['active']" icon="heroicon-o-check-circle" accent="var(--nx-success)" />
-            <x-nx-stat label="Entwurf" :value="$stats['draft']" icon="heroicon-o-pencil-square" />
-            <x-nx-stat label="Review fällig" :value="$stats['review_due']" icon="heroicon-o-clock" accent="var(--nx-warning)" />
+        {{-- Kennzahlen über alle sichtbaren Books --}}
+        <x-nx-stat-grid :cols="5">
+            <x-nx-stat label="Aktive Books" :value="$i['active_books']" :hint="$stats['total'] . ' gesamt · ' . $stats['draft'] . ' Entwurf'" icon="heroicon-o-book-open" accent="var(--nx-success)" />
+            <x-nx-stat label="Kritische / hohe Risiken" :value="$i['risks_critical'] . ' / ' . $i['risks_high']" hint="offene Risiken mit Score ≥ 10"
+                       icon="heroicon-o-exclamation-triangle" :accent="$i['risks_critical'] > 0 ? 'var(--nx-danger)' : null" />
+            <x-nx-stat label="Sitzungen (30 Tage)" :value="$i['upcoming_meetings']->count()" hint="anstehend" icon="heroicon-o-calendar" />
+            <x-nx-stat label="Offene Beschlüsse" :value="$i['open_decisions']" :hint="$i['overdue_decisions'] ? $i['overdue_decisions'] . ' überfällig' : 'keine überfällig'"
+                       icon="heroicon-o-check-badge" :accent="$i['overdue_decisions'] ? 'var(--nx-warning)' : null" />
+            <x-nx-stat label="Meilensteine überfällig" :value="$i['overdue_milestones']->count()" :hint="$stats['review_due'] ? $stats['review_due'] . ' Review(s) fällig' : 'Reviews im Plan'"
+                       icon="heroicon-o-flag" :accent="$i['overdue_milestones']->isNotEmpty() ? 'var(--nx-warning)' : null" />
         </x-nx-stat-grid>
+
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {{-- Nächste Sitzungen --}}
+            <x-nx-section icon="heroicon-o-calendar" title="Nächste Sitzungen" :hint="$i['upcoming_meetings']->count()">
+                @if($i['upcoming_meetings']->isEmpty())
+                    <x-nx-card><x-nx-empty icon="heroicon-o-calendar">Keine Sitzungen in den nächsten 30 Tagen.</x-nx-empty></x-nx-card>
+                @else
+                    <x-nx-card flush>
+                        <ul class="m-0 list-none divide-y divide-[color:var(--nx-line)] p-0">
+                            @foreach($i['upcoming_meetings']->take(6) as $m)
+                                <li wire:key="dash-meeting-{{ $m->id }}">
+                                    <x-nx-list-item icon="heroicon-o-calendar-days" :title="$m->title"
+                                                    :subtitle="($m->committee?->name ?? 'Gremium') . ' · ' . ($i['book_titles'][$m->committee?->management_book_id] ?? '')"
+                                                    :meta="$m->scheduled_at->format('d.m. H:i')"
+                                                    :href="route('management-book.meetings.show', $m)" />
+                                </li>
+                            @endforeach
+                        </ul>
+                    </x-nx-card>
+                @endif
+            </x-nx-section>
+
+            {{-- Offene Beschlüsse --}}
+            <x-nx-section icon="heroicon-o-check-badge" title="Offene Beschlüsse" :hint="$i['open_decisions']">
+                @if($i['decisions']->isEmpty())
+                    <x-nx-card><x-nx-empty icon="heroicon-o-check-badge">Keine offenen Beschlüsse.</x-nx-empty></x-nx-card>
+                @else
+                    <x-nx-card flush>
+                        <ul class="m-0 list-none divide-y divide-[color:var(--nx-line)] p-0">
+                            @foreach($i['decisions'] as $d)
+                                @php
+                                    $overdue = $d->due_date && $d->due_date->lt(today());
+                                    $meeting = $i['meeting_by_id'][$d->meeting_id] ?? null;
+                                @endphp
+                                <li wire:key="dash-dec-{{ $d->id }}">
+                                    <x-nx-list-item icon="heroicon-o-check-badge" :title="$d->text"
+                                                    :subtitle="($d->ownerUser?->name ?? $d->ownerAgent?->name ?? 'ohne Verantwortliche:n') . ($meeting ? ' · ' . $meeting->title : '')"
+                                                    :href="route('management-book.meetings.show', $d->meeting_id)">
+                                        <x-slot name="trailing">
+                                            @if($d->due_date)
+                                                <x-nx-badge :variant="$overdue ? 'warning' : 'neutral'">{{ $overdue ? 'überfällig ' : 'bis ' }}{{ $d->due_date->format('d.m.') }}</x-nx-badge>
+                                            @endif
+                                        </x-slot>
+                                    </x-nx-list-item>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </x-nx-card>
+                @endif
+            </x-nx-section>
+
+            {{-- Top-Risiken --}}
+            <x-nx-section icon="heroicon-o-exclamation-triangle" title="Top-Risiken" hint="nach Score">
+                @if($i['top_risks']->isEmpty())
+                    <x-nx-card><x-nx-empty icon="heroicon-o-shield-check">Keine bewerteten offenen Risiken.</x-nx-empty></x-nx-card>
+                @else
+                    <x-nx-card flush>
+                        <ul class="m-0 list-none divide-y divide-[color:var(--nx-line)] p-0">
+                            @foreach($i['top_risks'] as $r)
+                                @php $level = $r->level(); @endphp
+                                <li wire:key="dash-risk-{{ $r->id }}">
+                                    <x-nx-list-item :title="$r->title" :subtitle="$i['book_titles'][$r->management_book_id] ?? ''"
+                                                    :href="route('management-book.books.show', $r->management_book_id) . '?tab=risks'">
+                                        <x-slot name="leading">
+                                            <span class="flex h-7 w-7 items-center justify-center rounded-[6px] text-xs font-semibold tabular-nums text-[color:var(--nx-text)]"
+                                                  style="background: {{ $level?->tint() }};" title="{{ $level?->label() }}">{{ $r->score }}</span>
+                                        </x-slot>
+                                        <x-slot name="trailing">
+                                            <span class="text-xs text-[color:var(--nx-faint)]">E{{ $r->probability }}·A{{ $r->impact }}</span>
+                                        </x-slot>
+                                    </x-nx-list-item>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </x-nx-card>
+                @endif
+            </x-nx-section>
+        </div>
 
         <x-nx-section icon="heroicon-o-list-bullet" title="Alle Books" :hint="$books->count()"
                       description="Pro Knoten ist genau ein Book aktiv; weitere Books (Entwurf, abgelöst, archiviert) bleiben als Planung bzw. Historie erhalten.">

@@ -38,3 +38,13 @@ Je Management Book eine Risikomatrix nach der Vorlage von Burkhard Schmitz. Rein
 - **Risikobereitschaft** am Book: `risk_appetite` (`very_low|low|moderate|high|very_high`, Risiko-Skala Q-Meeting Folie 10), über `management-book.books.PUT`.
 
 MCP-Tools (Präfix `management-book.`): `risks.GET` (Filter `status`, `level`, `organization_entity_id`, `category`, `owner_user_id`, `search`; nach Score absteigend; mit `management_book_id` zusätzlich 5×5-Matrix, Verteilung je Ampelstufe und Risikobereitschaft), `risks.POST`, `risks.PUT`, `risks.DELETE`. Rechte erbt das Risiko vom Book. Tests: `tests/Feature/RisksSmokeTest.php` (Pfad zum Modul per `MB_MODULE_PATH`).
+
+## MVP-UI (#1055)
+
+Orientiert am Academy-Kurs „Management“ (BROICH.MANAGEMENTMODELL): Regelkreis, Management Book als Verdichtung, Lenkungsausschuss als Regelschleife („lokal vor übergreifend“, vier Fragen, Handlungsfähigkeit als Maßstab).
+
+- **Dashboard** (`/management-book`): Cockpit über alle sichtbaren Books – Kennzahlen, nächste Sitzungen, offene Beschlüsse, Top-Risiken, Book-Liste.
+- **Book** (`/books/{id}?tab=…`): Übersicht (Regelkreis mit 8 Stationen aus den Daten, Kennzahlen, Risikoprofil, was klemmt) · Book (Kapitel: Herkunft, Standort, Mission, Vision, Prioritäten, Geschäftsfelder, Grundsätze, Fähigkeiten, Zusammenarbeit – versioniert) · Strategie (Fokusräume, Transformation Map, Regnose/Forecasts) · Risiken (Risikobereitschaft, Heatmap, Register) · Gremien.
+- **Gremium** (`/committees/{id}`) und **Sitzung** (`/meetings/{id}`): Mitglieder, Sitzungen, offene Beschlüsse; Agenda mit LA-Leitfaden (Ziel, Beobachtung, Hindernis, lokal lösbar, Unterstützung des Gesamtsystems) und sechs Handlungsfähigkeits-Kriterien, Beschlüsse, Teilnehmer, Protokoll, Unterlagen.
+- Kennzahlen kommen aus `Services/BookInsights`. Neue Felder: Kapitel als `strategic_documents`-Typen (auch über `strategy.GET/PUT`), Agenda-Punkte `goal/observation/obstacle/local_solution/system_support/organization_entity_id/outcome_checks` (auch über `agenda_items.*`).
+- Tests: `tests/run-in-taiste.sh tests/Feature/Ui*Test.php` (HTTP-Render + Aktionen gegen sqlite).
