@@ -31,7 +31,8 @@ class ManagementBookImpactSource extends ImpactSourceBase
     public function milestones(int $teamId, CarbonInterface $from, CarbonInterface $to): array
     {
         $milestones = ManagementBookMilestone::query()
-            ->where('team_id', $teamId)
+            // kein Team-Filter: Bücher liegen oft in einem anderen Team als die Mitarbeiter; gezählt wird
+            // ohnehin nur, was exakt auf Arbeit eines Mitarbeiters verweist (Ref-genau)
             ->where('status', MilestoneStatus::REACHED->value)
             ->whereNotNull('reached_at')
             ->whereDate('reached_at', '>=', $from->toDateString())
@@ -54,7 +55,6 @@ class ManagementBookImpactSource extends ImpactSourceBase
     public function adoptions(int $teamId, CarbonInterface $from, CarbonInterface $to): array
     {
         $decisions = ManagementBookDecision::query()
-            ->where('team_id', $teamId)
             ->whereBetween('created_at', [$from, $to])
             ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', DecisionStatus::DISCARDED->value))
             ->whereNotNull('agenda_item_id')
