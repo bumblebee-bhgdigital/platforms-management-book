@@ -200,6 +200,7 @@ class ManagementBookServiceProvider extends ServiceProvider
         $this->registerMorphMap();
         $this->registerPolicies();
         $this->registerEntityLinkProvider();
+        $this->registerImpactSource();
         $this->registerTools();
 
         /**
@@ -220,6 +221,19 @@ class ManagementBookServiceProvider extends ServiceProvider
         Relation::morphMap([
             \Platform\ManagementBook\Models\ManagementBook::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBook::class,
         ]);
+    }
+
+    /** Wirkungs-Quelle für people (lose Kopplung — Modul bootet auch ohne people). */
+    protected function registerImpactSource(): void
+    {
+        try {
+            if (class_exists(\Platform\People\Support\ImpactSourceBase::class)) {
+                resolve(\Platform\People\Services\ImpactSourceRegistry::class)
+                    ->register(new \Platform\ManagementBook\People\ManagementBookImpactSource());
+            }
+        } catch (\Throwable $e) {
+            // People-Modul nicht geladen
+        }
     }
 
     protected function registerPolicies(): void
