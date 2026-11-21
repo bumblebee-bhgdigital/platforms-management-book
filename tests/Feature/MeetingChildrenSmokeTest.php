@@ -15,7 +15,13 @@ use Tests\TestCase;
  */
 class MeetingChildrenSmokeTest extends TestCase
 {
-    private const MODULE = '/home/agent/agent-workspace/platforms-management-book';
+    private const MODULE_FALLBACK = '/home/agent/agent-workspace/platforms-management-book';
+
+    /** Modulpfad: MB_MODULE_PATH (tests/run-in-taiste.sh) oder der Pfad der Verifikations-App. */
+    private static function module(): string
+    {
+        return getenv('MB_MODULE_PATH') ?: self::MODULE_FALLBACK;
+    }
 
     protected function setUp(): void
     {
@@ -27,7 +33,7 @@ class MeetingChildrenSmokeTest extends TestCase
         spl_autoload_register(function ($c) {
             $p = 'Platform\\ManagementBook\\';
             if (str_starts_with($c, $p)) {
-                $f = self::MODULE . '/src/' . str_replace('\\', '/', substr($c, strlen($p))) . '.php';
+                $f = self::module() . '/src/' . str_replace('\\', '/', substr($c, strlen($p))) . '.php';
                 if (is_file($f)) {
                     require $f;
                 }
@@ -36,7 +42,7 @@ class MeetingChildrenSmokeTest extends TestCase
         $files = array_merge(
             glob(base_path('vendor/martin3r/platform-core/database/migrations/*.php')),
             glob(base_path('vendor/martin3r/platform-organization/database/migrations/*.php')),
-            glob(self::MODULE . '/database/migrations/*.php'),
+            glob(self::module() . '/database/migrations/*.php'),
         );
         usort($files, fn ($a, $b) => strcmp(basename($a), basename($b)));
         foreach ($files as $f) {
@@ -55,7 +61,7 @@ class MeetingChildrenSmokeTest extends TestCase
         foreach ($tables as $t) {
             $this->assertTrue(Schema::hasTable($t), $t);
         }
-        $m = require self::MODULE . '/database/migrations/2026_11_20_000005_create_management_book_meeting_children_tables.php';
+        $m = require self::module() . '/database/migrations/2026_11_20_000005_create_management_book_meeting_children_tables.php';
         $m->up(); // idempotent
         $m->down();
         foreach ($tables as $t) {

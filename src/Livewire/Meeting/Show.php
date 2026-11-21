@@ -6,9 +6,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Platform\ManagementBook\Enums\AgendaOutcomeCheck;
 use Platform\ManagementBook\Enums\DecisionStatus;
 use Platform\ManagementBook\Enums\MeetingStatus;
+use Platform\ManagementBook\Formats\CommitteeFormat;
 use Platform\ManagementBook\Models\ManagementBookAgendaItem;
 use Platform\ManagementBook\Models\ManagementBookDecision;
 use Platform\ManagementBook\Models\ManagementBookDocument;
@@ -18,8 +18,9 @@ use Platform\ManagementBook\Models\ManagementBookMinutes;
 use Platform\Organization\Models\OrganizationEntity;
 
 /**
- * Sitzungsseite mit Lenkungsausschuss-Leitfaden (BROICH.MANAGEMENTMODELL, „Die vier Fragen“):
- * Agenda mit den vier Fragen und Handlungsfähigkeits-Kriterien, Beschlüsse, Teilnehmer, Protokoll, Unterlagen.
+ * Sitzungsseite. Felder, Arten, Erfolgsmessung, Ablauf und Leitfaden kommen aus dem Format des Gremientyps
+ * (src/Formats): Lenkungsausschuss mit den vier Fragen und Handlungsfähigkeit, Strategiemeeting mit
+ * Standortbestimmung und Richtungsentscheidungen, Board mit Bericht und Freigaben.
  * Alles frei schreibbar, keine Automatik.
  */
 class Show extends Component
@@ -48,6 +49,11 @@ class Show extends Component
     {
         Gate::authorize('view', $meeting);
         $this->meeting = $meeting;
+    }
+
+    protected function format(): CommitteeFormat
+    {
+        return CommitteeFormat::for($this->meeting->committee?->type);
     }
 
     protected function authorizeEdit(): void
@@ -122,18 +128,19 @@ class Show extends Component
         $this->authorizeEdit();
         $this->editingItemId = $itemId;
         $item = $itemId ? $this->child(ManagementBookAgendaItem::class, $itemId) : null;
+        $format = $this->format();
         $this->itemForm = [
             'title' => $item?->title ?? '',
+            'kind' => $item?->kind ?: $format->defaultAgendaKind(),
             'description' => $item?->description ?? '',
             'owner_user_id' => $item?->owner_user_id,
             'duration_minutes' => $item?->duration_minutes,
             'organization_entity_id' => $item?->organization_entity_id,
-            'goal' => $item?->goal ?? '',
-            'observation' => $item?->observation ?? '',
-            'obstacle' => $item?->obstacle ?? '',
-            'local_solution' => $item?->local_solution ?? '',
-            'system_support' => $item?->system_support ?? '',
         ];
+        // Nur die Leitfaden-Felder des Formats; andere Spalten bleiben beim Speichern unberührt.
+        foreach (array_keys($format->agendaFields()) as $field) {
+            $this->itemForm[$field] = $item?->{$field} ?? '';
+        }
         $this->resetValidation();
         $this->showItem = true;
     }
@@ -141,19 +148,21 @@ class Show extends Component
     public function saveItem(): void
     {
         $this->authorizeEdit();
-        $this->validate([
+        $format = $this->format();
+        $rules = [
             'itemForm.title' => 'required|string|max:255',
+            'itemForm.kind' => 'nullable|in:' . implode(',', array_keys($format->agendaKinds())),
             'itemForm.description' => 'nullable|string',
             'itemForm.owner_user_id' => 'nullable|integer|exists:users,id',
             'itemForm.duration_minutes' => 'nullable|integer|min:1|max:1440',
             'itemForm.organization_entity_id' => 'nullable|integer',
-            'itemForm.goal' => 'nullable|string',
-            'itemForm.observation' => 'nullable|string',
-            'itemForm.obstacle' => 'nullable|string',
-            'itemForm.local_solution' => 'nullable|string',
-            'itemForm.system_support' => 'nullable|string',
-        ]);
-        $data = array_map(fn ($v) => $v === '' ? null : $v, $this->itemForm);
+        ];
+        foreach (array_keys($format->agendaFields()) as $field) {
+            $rules['itemForm.' . $field] = 'nullable|string';
+        }
+        $this->validate($rules);
+        $allowed = array_merge(['title', 'kind', 'description', 'owner_user_id', 'duration_minutes', 'organization_entity_id'], array_keys($format->agendaFields()));
+        $data = array_map(fn ($v) => $v === '' ? null : $v, array_intersect_key($this->itemForm, array_flip($allowed)));
         $data['title'] = trim((string) $data['title']);
 
         if ($this->editingItemId) {
@@ -193,7 +202,7 @@ class Show extends Component
 
     public function toggleCheck(int $itemId, string $check): void
     {
-        if (! AgendaOutcomeCheck::tryFrom($check)) {
+        if (! isset($this->format()->outcomeChecks()[$check])) {
             return;
         }
         $item = $this->child(ManagementBookAgendaItem::class, $itemId);
@@ -213,6 +222,7 @@ class Show extends Component
         $d = $decisionId ? $this->child(ManagementBookDecision::class, $decisionId) : null;
         $this->decisionForm = [
             'text' => $d?->text ?? '',
+            'kind' => $d?->kind ?: $this->format()->defaultDecisionKind(),
             'status' => $d?->status?->value ?? DecisionStatus::OPEN->value,
             'owner_user_id' => $d?->owner_user_id,
             'due_date' => $d?->due_date?->toDateString(),
@@ -227,6 +237,7 @@ class Show extends Component
         $this->authorizeEdit();
         $this->validate([
             'decisionForm.text' => 'required|string',
+            'decisionForm.kind' => 'nullable|in:' . implode(',', array_keys($this->format()->decisionKinds())),
             'decisionForm.status' => 'required|in:' . implode(',', DecisionStatus::values()),
             'decisionForm.owner_user_id' => 'nullable|integer|exists:users,id',
             'decisionForm.due_date' => 'nullable|date',
@@ -419,9 +430,7 @@ class Show extends Component
         $this->meeting = $meeting;
 
         $items = $meeting->agendaItems;
-        $guided = $items->filter(fn ($i) => $this->isGuided($i));
-        $done = $guided->sum(fn ($i) => count($i->outcome_checks ?? []));
-        $max = $guided->count() * count(AgendaOutcomeCheck::cases());
+        $format = CommitteeFormat::for($meeting->committee?->type);
 
         $entityIds = $items->pluck('organization_entity_id')->filter()->unique();
         $teamId = $meeting->committee?->book?->team_id ?? $meeting->team_id;
@@ -442,11 +451,14 @@ class Show extends Component
             'book' => $meeting->committee?->book,
             'items' => $items,
             'decisions' => $meeting->decisions->sortBy(fn ($d) => [$d->status?->value === 'open' ? 0 : 1, $d->due_date?->timestamp ?? PHP_INT_MAX])->values(),
-            'capability' => ['done' => $done, 'max' => $max, 'guided' => $guided->count(), 'pct' => $max > 0 ? (int) round($done / $max * 100) : null],
+            'format' => $format,
+            'capability' => $format->assess($items),
             'entityNames' => $entityIds->isEmpty() ? collect() : OrganizationEntity::whereIn('id', $entityIds)->pluck('name', 'id'),
             'documentFiles' => $documentFiles,
             'canEdit' => Gate::allows('update', $meeting),
-            'checks' => AgendaOutcomeCheck::cases(),
+            'checks' => $format->outcomeChecks(),
+            'agendaKindOptions' => array_map(fn ($v, $l) => ['value' => $v, 'label' => $l], array_keys($format->agendaKinds()), $format->agendaKinds()),
+            'decisionKindOptions' => array_map(fn ($v, $l) => ['value' => $v, 'label' => $l], array_keys($format->decisionKinds()), $format->decisionKinds()),
             'statusOptions' => MeetingStatus::cases(),
             'decisionStatusOptions' => array_map(fn ($s) => ['value' => $s->value, 'label' => $s->label()], DecisionStatus::cases()),
             'userOptions' => $this->teamUsers($meeting->team_id),
@@ -454,12 +466,6 @@ class Show extends Component
                 ->map(fn ($e) => ['value' => $e->id, 'label' => $e->name])->all(),
             'itemOptions' => $items->map(fn ($i, $k) => ['value' => $i->id, 'label' => ($k + 1) . '. ' . $i->title])->values()->all(),
         ])->layout('platform::layouts.app');
-    }
-
-    protected function isGuided(ManagementBookAgendaItem $i): bool
-    {
-        return filled($i->goal) || filled($i->observation) || filled($i->obstacle)
-            || filled($i->local_solution) || filled($i->system_support) || ! empty($i->outcome_checks);
     }
 
     protected function teamUsers(int $teamId): array

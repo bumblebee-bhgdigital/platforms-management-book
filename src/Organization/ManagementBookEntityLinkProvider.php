@@ -3,13 +3,14 @@
 namespace Platform\ManagementBook\Organization;
 
 use Illuminate\Database\Eloquent\Builder;
-use Platform\ManagementBook\Enums\AgendaOutcomeCheck;
+use Platform\ManagementBook\Enums\CommitteeType;
 use Platform\ManagementBook\Enums\DecisionStatus;
 use Platform\ManagementBook\Enums\ManagementBookStatus;
 use Platform\ManagementBook\Enums\MeetingStatus;
 use Platform\ManagementBook\Enums\MilestoneStatus;
 use Platform\ManagementBook\Enums\RiskLevel;
 use Platform\ManagementBook\Enums\RiskStatus;
+use Platform\ManagementBook\Formats\CommitteeFormat;
 use Platform\ManagementBook\Models\ManagementBook;
 use Platform\ManagementBook\Models\ManagementBookAgendaItem;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
@@ -34,13 +35,18 @@ use Platform\Organization\Contracts\HasMetricDefinitions;
  * aller verknüpften Books (Entwurf und aktiv) an die Organisation; metricDefinitions() beschreibt sie (Gruppe
  * „management“). Die Organisation speichert sie im nächtlichen Snapshot und zeigt sie am Knoten.
  *
+ * Gremien (Alias management_book_committee) hängen ebenfalls an Knoten – typischerweise an den Gremien-Knoten
+ * der Organisation (z. B. „BHG.DIGITAL Lenkungsausschuss“). Sie melden Sitzungen, Beschlüsse und – nur beim
+ * Lenkungsausschuss – die Handlungsfähigkeit der letzten Sitzung (Kennzahlen mbc_*).
+ * Handlungsfähigkeit zählt überall nur LA-Sitzungen; Strategiemeeting und Board haben eigene Erfolgsmaße.
+ *
  * Bewusst NICHT implementiert: HasPersonMetrics, HasContextParent.
  */
 class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricDefinitions
 {
     public function morphAliases(): array
     {
-        return [ManagementBook::MORPH_ALIAS];
+        return [ManagementBook::MORPH_ALIAS, ManagementBookCommittee::MORPH_ALIAS];
     }
 
     public function linkTypeConfig(): array
@@ -52,6 +58,12 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
                 'icon' => 'book-open',
                 'route' => 'management-book.books.show',
             ],
+            ManagementBookCommittee::MORPH_ALIAS => [
+                'label' => 'Gremien',
+                'singular' => 'Gremium',
+                'icon' => 'user-group',
+                'route' => 'management-book.committees.show',
+            ],
         ];
     }
 
@@ -60,10 +72,23 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
         if ($morphAlias === ManagementBook::MORPH_ALIAS) {
             $query->with(['owner:id,name', 'responsibleAgent:id,name']);
         }
+        if ($morphAlias === ManagementBookCommittee::MORPH_ALIAS) {
+            $query->with(['book:id,title', 'chair:id,name']);
+        }
     }
 
     public function extractMetadata(string $morphAlias, mixed $model): array
     {
+        if ($morphAlias === ManagementBookCommittee::MORPH_ALIAS) {
+            return [
+                'type' => $model->type?->label(),
+                'format' => $model->format()->name(),
+                'status' => $model->status?->label(),
+                'book' => $model->book?->title,
+                'chair' => $model->chair?->name,
+                'cadence' => $model->cadence,
+            ];
+        }
         if ($morphAlias !== ManagementBook::MORPH_ALIAS) {
             return [];
         }
@@ -89,6 +114,12 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
                 ['field' => 'horizon_year', 'format' => 'prefixed_text', 'prefix' => 'Horizont '],
                 ['field' => 'next_review_at', 'format' => 'prefixed_text', 'prefix' => 'Review '],
             ],
+            ManagementBookCommittee::MORPH_ALIAS => [
+                ['field' => 'type', 'format' => 'badge'],
+                ['field' => 'book', 'format' => 'text'],
+                ['field' => 'chair', 'format' => 'prefixed_text', 'prefix' => 'Vorsitz '],
+                ['field' => 'cadence', 'format' => 'text'],
+            ],
         ];
     }
 
@@ -104,6 +135,9 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
      */
     public function metrics(string $morphAlias, array $linksByEntity): array
     {
+        if ($morphAlias === ManagementBookCommittee::MORPH_ALIAS) {
+            return $this->committeeMetrics($linksByEntity);
+        }
         if ($morphAlias !== ManagementBook::MORPH_ALIAS) {
             return [];
         }
@@ -129,7 +163,9 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
         $focusAreas = ManagementBookFocusArea::query()->whereIn('management_book_id', $bookIds)
             ->selectRaw('management_book_id, count(*) as n')->groupBy('management_book_id')->pluck('n', 'management_book_id');
 
-        $committeeBook = ManagementBookCommittee::query()->whereIn('management_book_id', $bookIds)->pluck('management_book_id', 'id');
+        $committeeRows = ManagementBookCommittee::query()->whereIn('management_book_id', $bookIds)->get(['id', 'management_book_id', 'type']);
+        $committeeBook = $committeeRows->pluck('management_book_id', 'id');
+        $steeringIds = $committeeRows->filter(fn ($c) => $c->type === CommitteeType::STEERING_COMMITTEE)->pluck('id')->all();
         $meetings = $committeeBook->isEmpty() ? collect() : ManagementBookMeeting::query()
             ->whereIn('committee_id', $committeeBook->keys())->get(['id', 'committee_id', 'status', 'scheduled_at']);
         $bookOfMeeting = $meetings->mapWithKeys(fn ($m) => [$m->id => $committeeBook[$m->committee_id] ?? null]);
@@ -139,23 +175,11 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
             ->whereIn('meeting_id', $meetings->pluck('id'))->where('status', DecisionStatus::OPEN->value)
             ->get(['id', 'meeting_id', 'due_date'])->groupBy(fn ($d) => $bookOfMeeting[$d->meeting_id] ?? 0);
 
-        // Handlungsfähigkeit der jeweils letzten gehaltenen Sitzung je Book (Kriterien wie in der Sitzungsansicht)
-        $lastHeld = $meetingsByBook->map(fn ($ms) => $ms->filter(fn ($m) => $m->status === MeetingStatus::HELD && $m->scheduled_at)
-            ->sortByDesc('scheduled_at')->first())->filter();
-        $capability = [];
-        if ($lastHeld->isNotEmpty()) {
-            $items = ManagementBookAgendaItem::query()->whereIn('meeting_id', $lastHeld->pluck('id'))
-                ->get(['id', 'meeting_id', 'goal', 'observation', 'obstacle', 'local_solution', 'system_support', 'outcome_checks'])
-                ->groupBy('meeting_id');
-            $perItem = count(AgendaOutcomeCheck::cases());
-            foreach ($lastHeld as $bookId => $meeting) {
-                $guided = ($items[$meeting->id] ?? collect())->filter(fn ($i) => filled($i->goal) || filled($i->observation)
-                    || filled($i->obstacle) || filled($i->local_solution) || filled($i->system_support) || ! empty($i->outcome_checks));
-                if ($guided->isNotEmpty()) {
-                    $capability[$bookId] = $guided->sum(fn ($i) => count($i->outcome_checks ?? [])) / ($guided->count() * $perItem) * 100;
-                }
-            }
-        }
+        // Handlungsfähigkeit der jeweils letzten gehaltenen LA-Sitzung je Book (Kriterien wie in der Sitzungsansicht).
+        // Strategiemeeting und Board messen etwas anderes und zählen hier nicht.
+        $lastHeld = $meetingsByBook->map(fn ($ms) => $ms->filter(fn ($m) => $m->status === MeetingStatus::HELD && $m->scheduled_at
+            && in_array($m->committee_id, $steeringIds, true))->sortByDesc('scheduled_at')->first())->filter();
+        $capability = $this->capabilityOf($lastHeld);
 
         $today = today();
         $monthAgo = now()->subDays(30);
@@ -256,6 +280,107 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
     }
 
     /**
+     * Handlungsfähigkeit (0–100) je Schlüssel für die übergebenen LA-Sitzungen.
+     *
+     * @param \Illuminate\Support\Collection<int|string, ManagementBookMeeting> $meetings Schlüssel => Sitzung
+     * @return array<int|string, float>
+     */
+    private function capabilityOf(\Illuminate\Support\Collection $meetings): array
+    {
+        if ($meetings->isEmpty()) {
+            return [];
+        }
+        $format = CommitteeFormat::for(CommitteeType::STEERING_COMMITTEE);
+        $items = ManagementBookAgendaItem::query()->whereIn('meeting_id', $meetings->pluck('id'))
+            ->get(['id', 'meeting_id', 'kind', 'goal', 'observation', 'obstacle', 'local_solution', 'system_support', 'outcome_checks'])
+            ->groupBy('meeting_id');
+        $out = [];
+        foreach ($meetings as $key => $meeting) {
+            $a = $format->assess($items[$meeting->id] ?? []);
+            if ($a['max'] > 0) {
+                $out[$key] = $a['done'] / $a['max'] * 100;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Kennzahlen je Knoten über die dort verorteten Gremien (aktiv oder ruhend; aufgelöste zählen nicht).
+     *
+     * @param array<int, int[]> $linksByEntity
+     */
+    private function committeeMetrics(array $linksByEntity): array
+    {
+        $allIds = array_values(array_unique(array_merge(...array_values($linksByEntity ?: [[]]))));
+        if ($allIds === []) {
+            return [];
+        }
+        $committees = ManagementBookCommittee::query()->whereIn('id', $allIds)
+            ->where('status', '!=', \Platform\ManagementBook\Enums\CommitteeStatus::DISSOLVED->value)
+            ->get(['id', 'type'])->keyBy('id');
+        if ($committees->isEmpty()) {
+            return [];
+        }
+
+        $meetings = ManagementBookMeeting::query()->whereIn('committee_id', $committees->keys())
+            ->get(['id', 'committee_id', 'status', 'scheduled_at'])->groupBy('committee_id');
+        $meetingCommittee = $meetings->flatten()->pluck('committee_id', 'id');
+        $decisions = $meetingCommittee->isEmpty() ? collect() : ManagementBookDecision::query()
+            ->whereIn('meeting_id', $meetingCommittee->keys())->where('status', DecisionStatus::OPEN->value)
+            ->get(['id', 'meeting_id', 'due_date'])->groupBy(fn ($d) => $meetingCommittee[$d->meeting_id] ?? 0);
+
+        $lastHeldLa = $committees->filter(fn ($c) => $c->type === CommitteeType::STEERING_COMMITTEE)
+            ->map(fn ($c) => ($meetings[$c->id] ?? collect())->filter(fn ($m) => $m->status === MeetingStatus::HELD && $m->scheduled_at)
+                ->sortByDesc('scheduled_at')->first())->filter();
+        $capability = $this->capabilityOf($lastHeldLa);
+
+        $today = today();
+        $monthAgo = now()->subDays(30);
+        $result = [];
+        foreach ($linksByEntity as $entityId => $ids) {
+            $m = ['mbc_committees' => 0, 'mbc_meetings_held_30d' => 0, 'mbc_decisions_open' => 0, 'mbc_decisions_overdue' => 0];
+            $next = null;
+            $caps = [];
+            foreach (array_unique($ids) as $id) {
+                if (! isset($committees[$id])) {
+                    continue;
+                }
+                $m['mbc_committees']++;
+                foreach ($meetings[$id] ?? [] as $mt) {
+                    if (! $mt->scheduled_at) {
+                        continue;
+                    }
+                    if ($mt->status === MeetingStatus::HELD && $mt->scheduled_at->gte($monthAgo)) {
+                        $m['mbc_meetings_held_30d']++;
+                    }
+                    if ($mt->scheduled_at->gte(now()) && ! in_array($mt->status, [MeetingStatus::CANCELLED, MeetingStatus::HELD], true)
+                        && ($next === null || $mt->scheduled_at->lt($next))) {
+                        $next = $mt->scheduled_at;
+                    }
+                }
+                foreach ($decisions[$id] ?? [] as $d) {
+                    $m['mbc_decisions_open']++;
+                    if ($d->due_date && $d->due_date->lt($today)) {
+                        $m['mbc_decisions_overdue']++;
+                    }
+                }
+                if (isset($capability[$id])) {
+                    $caps[] = $capability[$id];
+                }
+            }
+            if ($m['mbc_committees'] === 0) {
+                continue;
+            }
+            $m['mbc_days_to_next_meeting'] = $next ? (int) $today->diffInDays($next->copy()->startOfDay()) : null;
+            $m['mbc_meeting_capability_percent'] = $caps ? (int) round(array_sum($caps) / count($caps)) : null;
+            $result[$entityId] = array_filter($m, fn ($v) => $v !== null);
+        }
+
+        return $result;
+    }
+
+    /**
      * Beschreibung der Kennzahlen für Snapshots, Kennzahlen-Ansicht und Dimensionen der Organisation.
      * Keine Metrik ist is_dimension_primary – die kanonischen Maße der Dimensionen bleiben bei Planner & Co.
      */
@@ -283,7 +408,15 @@ class ManagementBookEntityLinkProvider implements EntityLinkProvider, HasMetricD
             'mb_decisions_overdue' => ['label' => 'Beschlüsse überfällig', 'group' => $g, 'direction' => 'down', 'unit' => 'count', 'dimension' => 'energy', 'type' => 'stock', 'aggregation_mode' => 'rolled_up', 'basis' => 'stichtag', 'pair' => 'mb_decisions_open', 'subset_of' => 'mb_decisions_open'],
             'mb_meetings_held_30d' => ['label' => 'Gremiensitzungen (30 Tage)', 'group' => $g, 'direction' => 'neutral', 'unit' => 'count', 'dimension' => 'throughput', 'type' => 'flow', 'aggregation_mode' => 'rolled_up', 'basis' => 'window_30d'],
             'mb_days_to_next_meeting' => ['label' => 'Tage bis zur nächsten Sitzung', 'group' => $g, 'direction' => 'neutral', 'unit' => 'days', 'dimension' => 'energy', 'type' => 'modulator', 'aggregation_mode' => 'own', 'roll_up_function' => 'min', 'basis' => 'modulator_factor'],
-            'mb_meeting_capability_percent' => ['label' => 'Handlungsfähigkeit letzte Sitzung', 'group' => $g, 'direction' => 'up', 'unit' => 'percentage', 'dimension' => 'quality', 'type' => 'modulator', 'aggregation_mode' => 'own', 'roll_up_function' => 'avg', 'basis' => 'modulator_factor'],
+            'mb_meeting_capability_percent' => ['label' => 'Handlungsfähigkeit letzter LA', 'group' => $g, 'direction' => 'up', 'unit' => 'percentage', 'dimension' => 'quality', 'type' => 'modulator', 'aggregation_mode' => 'own', 'roll_up_function' => 'avg', 'basis' => 'modulator_factor'],
+
+            // Gremien an Gremien-Knoten (Alias management_book_committee)
+            'mbc_committees' => ['label' => 'Gremien', 'group' => $g, 'direction' => 'neutral', 'unit' => 'count', 'dimension' => 'org_capital', 'type' => 'stock', 'aggregation_mode' => 'rolled_up', 'basis' => 'stichtag'],
+            'mbc_meetings_held_30d' => ['label' => 'Sitzungen des Gremiums (30 Tage)', 'group' => $g, 'direction' => 'neutral', 'unit' => 'count', 'dimension' => 'throughput', 'type' => 'flow', 'aggregation_mode' => 'rolled_up', 'basis' => 'window_30d'],
+            'mbc_decisions_open' => ['label' => 'Offene Beschlüsse des Gremiums', 'group' => $g, 'direction' => 'neutral', 'unit' => 'count', 'dimension' => 'complexity', 'type' => 'stock', 'aggregation_mode' => 'rolled_up', 'basis' => 'stichtag'],
+            'mbc_decisions_overdue' => ['label' => 'Überfällige Beschlüsse des Gremiums', 'group' => $g, 'direction' => 'down', 'unit' => 'count', 'dimension' => 'energy', 'type' => 'stock', 'aggregation_mode' => 'rolled_up', 'basis' => 'stichtag', 'pair' => 'mbc_decisions_open', 'subset_of' => 'mbc_decisions_open'],
+            'mbc_days_to_next_meeting' => ['label' => 'Tage bis zur nächsten Gremiumssitzung', 'group' => $g, 'direction' => 'neutral', 'unit' => 'days', 'dimension' => 'energy', 'type' => 'modulator', 'aggregation_mode' => 'own', 'roll_up_function' => 'min', 'basis' => 'modulator_factor'],
+            'mbc_meeting_capability_percent' => ['label' => 'Handlungsfähigkeit letzter LA (Gremium)', 'group' => $g, 'direction' => 'up', 'unit' => 'percentage', 'dimension' => 'quality', 'type' => 'modulator', 'aggregation_mode' => 'own', 'roll_up_function' => 'avg', 'basis' => 'modulator_factor'],
         ];
     }
 

@@ -13,7 +13,7 @@ use Platform\ManagementBook\Enums\CommitteeType;
 use Symfony\Component\Uid\UuidV7;
 
 /**
- * @ai.description Gremium eines Management Books (z. B. Lenkungsausschuss). Reine Datenhaltung: keine Standard-Agenda, keine Ablauflogik — das Wissen, wie ein Gremium arbeitet, liegt beim Agenten.
+ * @ai.description Gremium eines Management Books (z. B. Lenkungsausschuss). Keine Standard-Agenda, keine Ablauflogik; das Format je Typ (format()) legt Agenda-Felder, Arten von Punkten/Beschlüssen und die Erfolgsmessung fest. Verortung an einem Organisations-Knoten lose per DimensionLink (Alias management_book_committee).
  *
  * Sichtbarkeit/Rechte werden vom Management Book geerbt (ManagementBookCommitteePolicy).
  *
@@ -101,6 +101,12 @@ class ManagementBookCommittee extends Model implements HasDisplayName
     public function meetings(): HasMany
     {
         return $this->hasMany(ManagementBookMeeting::class, 'committee_id');
+    }
+
+    /** Format des Gremiums nach Typ (src/Formats). */
+    public function format(): \Platform\ManagementBook\Formats\CommitteeFormat
+    {
+        return \Platform\ManagementBook\Formats\CommitteeFormat::for($this->type);
     }
 
     public function getDisplayName(): ?string

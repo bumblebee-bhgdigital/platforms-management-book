@@ -45,9 +45,24 @@ Orientiert am Academy-Kurs „Management“ (BROICH.MANAGEMENTMODELL): Regelkrei
 
 - **Dashboard** (`/management-book`): Cockpit über alle sichtbaren Books – Kennzahlen, nächste Sitzungen, offene Beschlüsse, Top-Risiken, Book-Liste.
 - **Book** (`/books/{id}?tab=…`): Übersicht (Regelkreis mit 8 Stationen aus den Daten, Kennzahlen, Risikoprofil, was klemmt) · Book (Kapitel: Herkunft, Standort, Mission, Vision, Prioritäten, Geschäftsfelder, Grundsätze, Fähigkeiten, Zusammenarbeit – versioniert) · Strategie (Fokusräume, Transformation Map, Regnose/Forecasts) · Risiken (Risikobereitschaft, Heatmap, Register) · Gremien.
-- **Gremium** (`/committees/{id}`) und **Sitzung** (`/meetings/{id}`): Mitglieder, Sitzungen, offene Beschlüsse; Agenda mit LA-Leitfaden (Ziel, Beobachtung, Hindernis, lokal lösbar, Unterstützung des Gesamtsystems) und sechs Handlungsfähigkeits-Kriterien, Beschlüsse, Teilnehmer, Protokoll, Unterlagen.
+- **Gremium** (`/committees/{id}`) und **Sitzung** (`/meetings/{id}`): Mitglieder, Sitzungen, offene Beschlüsse; Agenda mit dem Leitfaden des Gremium-Formats (LA: vier Fragen und sechs Handlungsfähigkeits-Kriterien; Strategiemeeting: Ausgangslage/Richtungsfrage; Board: Lage/Vorlage/Abweichung), Beschlüsse, Teilnehmer, Protokoll, Unterlagen.
 - Kennzahlen kommen aus `Services/BookInsights`. Neue Felder: Kapitel als `strategic_documents`-Typen (auch über `strategy.GET/PUT`), Agenda-Punkte `goal/observation/obstacle/local_solution/system_support/organization_entity_id/outcome_checks` (auch über `agenda_items.*`).
 - Tests: `tests/run-in-taiste.sh tests/Feature/Ui*Test.php` (HTTP-Render + Aktionen gegen sqlite).
+
+## Formate je Gremientyp und Verortung der Gremien
+
+Alle Gremien teilen ein Datenmodell (Gremium, Sitzung, Agenda, Beschluss, Protokoll). Das **Format** je `CommitteeType` (`src/Formats/*`, `$committee->format()`) legt Verhalten und Sprache fest – keine eigenen Tabellen je Gremium:
+
+| Typ | Format | Agenda-Arten (`kind`) | Leitfaden-Spalten | Beschluss-Arten (`kind`) | Erfolgsmessung |
+|---|---|---|---|---|---|
+| `steering_committee` | Regulation | regulation, info | goal, observation, obstacle, local_solution, system_support (vier Fragen) | measure, return_to_unit, escalation | Handlungsfähigkeit (6 Kriterien) |
+| `strategy_meeting` | Richtung | assessment, direction, info | observation (Ausgangslage), goal (Richtungsfrage) | direction, objective, guardrail, focus_area | Richtungsklarheit (direction_clear, priorities_set, trade_offs_named, book_updated, communication_planned) |
+| `board` | Kontrolle & Freigabe | report, approval, info | observation (Lage), goal (Vorlage), obstacle (Abweichung) | approval, condition, rejection | Entscheidungsklarheit (situation_understood, risks_assessed, approvals_given, conditions_with_deadline, followup_clear) |
+| `other` | Besprechung | topic, info | observation, goal | decision, task | Ergebnis (3 Kriterien) |
+
+`kind` an Agenda-Punkt und Beschluss ist optional (null = Standard-Art). `info`-Punkte haben keinen Leitfaden und zählen nicht in die Messung. Sitzungsseite, Gremium-Seite, Tools und Kennzahlen lesen das Format; die Tools prüfen `kind` und `outcome_checks` dagegen. `management-book.committees.GET id=…` liefert das vollständige Format für Agenten. **Handlungsfähigkeit** (Kennzahlen `mb_meeting_capability_percent`, `mbc_meeting_capability_percent`) zählt nur Lenkungsausschuss-Sitzungen.
+
+**Verortung:** Ein Gremium hängt lose per DimensionLink (Alias `management_book_committee`) an einem Organisations-Knoten, typischerweise dem Gremien-Knoten („BHG.DIGITAL Lenkungsausschuss“). Setzen über die Gremium-Seite („In der Organisation verorten“), `management-book.committees.PUT` mit `organization_entity_id` (0 = lösen) oder `organization.entity.link.POST` (`object_type=management_book_committee`). Der Knoten erhält die Kennzahlen `mbc_*` (Gremien, Sitzungen 30 Tage, offene/überfällige Beschlüsse, Tage bis zur nächsten Sitzung, Handlungsfähigkeit letzter LA).
 
 ## Präsentationen an Sitzung und Gremium (Slides, lose gekoppelt)
 

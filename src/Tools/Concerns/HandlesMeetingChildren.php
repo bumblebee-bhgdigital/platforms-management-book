@@ -11,6 +11,7 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Models\ContextFile;
 use Platform\Core\Models\Team;
 use Platform\ManagementBook\Enums\DecisionStatus;
+use Platform\ManagementBook\Formats\CommitteeFormat;
 use Platform\ManagementBook\Models\ManagementBookAgendaItem;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
 use Platform\ManagementBook\Models\ManagementBookDecision;
@@ -25,6 +26,7 @@ use Platform\ManagementBook\Models\ManagementBookMinutes;
  *
  * Reine Datenhaltung: alle Felder sind frei schreibbar (auch approved_at, attended, status), damit historische
  * Sitzungen vollständig abbildbar sind. Es gibt keine Standard-Agenda und keine Ablaufregeln.
+ * Das Format des Gremientyps (src/Formats) bestimmt die erlaubten Arten (kind) und Erfolgskriterien (outcome_checks).
  * Rechte: Sitzungs-Kinder erben die Rechte der Sitzung (ManagementBookMeetingChildPolicy).
  */
 trait HandlesMeetingChildren
@@ -37,7 +39,7 @@ trait HandlesMeetingChildren
         return match ($kind) {
             'agenda_item' => [
                 'label' => 'Agenda-Punkt', 'plural' => 'agenda_items', 'class' => ManagementBookAgendaItem::class,
-                'fields' => ['position', 'title', 'description', 'owner_user_id', 'owner_agent_id', 'duration_minutes', 'linked_object_type', 'linked_object_id',
+                'fields' => ['position', 'title', 'kind', 'description', 'owner_user_id', 'owner_agent_id', 'duration_minutes', 'linked_object_type', 'linked_object_id',
                     'goal', 'observation', 'obstacle', 'local_solution', 'system_support', 'organization_entity_id', 'outcome_checks'],
                 'created_by' => true, 'agenda' => false, 'search' => ['title', 'description'],
             ],
@@ -53,7 +55,7 @@ trait HandlesMeetingChildren
             ],
             'decision' => [
                 'label' => 'Beschluss', 'plural' => 'decisions', 'class' => ManagementBookDecision::class,
-                'fields' => ['agenda_item_id', 'text', 'status', 'owner_user_id', 'owner_agent_id', 'due_date', 'linked_task_id'],
+                'fields' => ['agenda_item_id', 'text', 'kind', 'status', 'owner_user_id', 'owner_agent_id', 'due_date', 'linked_task_id'],
                 'created_by' => true, 'agenda' => true, 'search' => ['text'],
             ],
             'attendee' => [
@@ -91,13 +93,20 @@ trait HandlesMeetingChildren
                 'duration_minutes' => ['type' => 'integer', 'description' => 'Geplante Dauer in Minuten.'],
                 'linked_object_type' => ['type' => 'string', 'description' => 'Optional: Typ eines verknüpften Objekts (Morph-Alias, z. B. milestone). Zusammen mit linked_object_id; leerer String löst die Verknüpfung.'],
                 'linked_object_id' => ['type' => 'integer', 'description' => 'Optional: ID des verknüpften Objekts.'],
-                'goal' => ['type' => 'string', 'description' => 'Leitfaden 1 – Was wollten wir erreichen?'],
-                'observation' => ['type' => 'string', 'description' => 'Leitfaden 2 – Was beobachten wir tatsächlich?'],
-                'obstacle' => ['type' => 'string', 'description' => 'Leitfaden 3 – Was verhindert momentan die Zielerreichung?'],
-                'local_solution' => ['type' => 'string', 'description' => 'Leitfaden 4a – Was kann der verantwortliche Bereich selbst lösen?'],
-                'system_support' => ['type' => 'string', 'description' => 'Leitfaden 4b – Wobei braucht der Bereich Unterstützung des Gesamtsystems?'],
+                'kind' => ['type' => 'string', 'description' => 'Art des Punkts, abhängig vom Gremientyp (Format, siehe management-book.committees.GET id=… → format). '
+                    . 'Lenkungsausschuss: regulation (Standard), info. Strategiemeeting: assessment (Standortbestimmung, Standard), direction (Richtungsfrage), info. '
+                    . 'Board: report (Standard), approval (Vorlage zur Freigabe), info. Sonstige: topic, info. info = ohne Leitfaden, zählt nicht in die Erfolgsmessung.'],
+                'goal' => ['type' => 'string', 'description' => 'Leitfaden-Spalte, je Format: LA 1 „Was wollten wir erreichen?“ · Strategiemeeting „Richtungsfrage“ · Board „Antrag/Vorlage“ · Sonstige „Ziel des Punkts“.'],
+                'observation' => ['type' => 'string', 'description' => 'Leitfaden-Spalte, je Format: LA 2 „Was beobachten wir tatsächlich?“ · Strategiemeeting „Ausgangslage“ · Board „Bericht/Lage“ · Sonstige „Ausgangslage“.'],
+                'obstacle' => ['type' => 'string', 'description' => 'Leitfaden-Spalte, je Format: LA 3 „Was hindert euch momentan?“ · Board „Risiko/Abweichung“ · im Strategiemeeting nicht genutzt.'],
+                'local_solution' => ['type' => 'string', 'description' => 'Nur Lenkungsausschuss: 4a – Was kann der verantwortliche Bereich selbst lösen?'],
+                'system_support' => ['type' => 'string', 'description' => 'Nur Lenkungsausschuss: 4b – Wobei braucht der Bereich Unterstützung des Gesamtsystems?'],
                 'organization_entity_id' => ['type' => 'integer', 'description' => 'Optional: einbringende Einheit als Knoten der Organisation (lose).'],
-                'outcome_checks' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => \Platform\ManagementBook\Enums\AgendaOutcomeCheck::values()], 'description' => 'Nach dem LA erfüllte Kriterien (ersetzt die Liste): blockers_removed, priorities_clearer, conflicts_decided, responsibilities_clear, resources_available, unit_self_reliant. Maßstab: Ist die Organisation danach handlungsfähiger?'],
+                'outcome_checks' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Nach der Sitzung erfüllte Kriterien (ersetzt die Liste), je Format. '
+                    . 'LA (Handlungsfähigkeit): blockers_removed, priorities_clearer, conflicts_decided, responsibilities_clear, resources_available, unit_self_reliant. '
+                    . 'Strategiemeeting (Richtungsklarheit): direction_clear, priorities_set, trade_offs_named, book_updated, communication_planned. '
+                    . 'Board (Entscheidungsklarheit): situation_understood, risks_assessed, approvals_given, conditions_with_deadline, followup_clear. '
+                    . 'Sonstige: topic_clarified, next_steps_clear, responsibilities_clear.'],
             ] + $owner,
             'document' => [
                 'title' => ['type' => 'string', 'description' => 'Titel der Unterlage.'],
@@ -112,6 +121,10 @@ trait HandlesMeetingChildren
             ],
             'decision' => [
                 'text' => ['type' => 'string', 'description' => 'Beschlusstext.'],
+                'kind' => ['type' => 'string', 'description' => 'Art des Beschlusses, abhängig vom Gremientyp (Format). '
+                    . 'Lenkungsausschuss: measure (Maßnahme, Standard), return_to_unit (zurück an den Bereich), escalation. '
+                    . 'Strategiemeeting: direction (Richtungsentscheidung, Standard), objective (Ziel), guardrail (Leitplanke), focus_area (Fokusraum). '
+                    . 'Board: approval (Freigabe, Standard), condition (Auflage), rejection (Ablehnung). Sonstige: decision, task.'],
                 'status' => ['type' => 'string', 'enum' => DecisionStatus::values(), 'description' => 'open (offen, Default), implemented (umgesetzt), discarded (verworfen). Frei setzbar.'],
                 'agenda_item_id' => ['type' => 'integer', 'description' => 'Optional: Agenda-Punkt derselben Sitzung (null löst die Zuordnung).'],
                 'due_date' => ['type' => 'string', 'description' => 'Fälligkeit (YYYY-MM-DD).'],
@@ -217,6 +230,8 @@ trait HandlesMeetingChildren
             'agenda_item' => [
                 'position' => $m->position,
                 'title' => $m->title,
+                'kind' => $m->kind ?: $this->formatForMeeting($m->meeting_id)->defaultAgendaKind(),
+                'kind_label' => $this->formatForMeeting($m->meeting_id)->agendaKindLabel($m->kind),
                 'description' => $m->description,
                 'owner_user_id' => $m->owner_user_id,
                 'owner_agent_id' => $m->owner_agent_id,
@@ -245,6 +260,8 @@ trait HandlesMeetingChildren
             'decision' => [
                 'agenda_item_id' => $m->agenda_item_id,
                 'text' => $m->text,
+                'kind' => $m->kind ?: $this->formatForMeeting($m->meeting_id)->defaultDecisionKind(),
+                'kind_label' => $this->formatForMeeting($m->meeting_id)->decisionKindLabel($m->kind),
                 'status' => $m->status?->value,
                 'status_label' => $m->status?->label(),
                 'owner_user_id' => $m->owner_user_id,
@@ -283,6 +300,23 @@ trait HandlesMeetingChildren
             ])->all();
     }
 
+    /** @var array<int, CommitteeFormat> */
+    private array $meetingFormats = [];
+
+    /** Format der Sitzung (über ihr Gremium), zwischengespeichert je Aufruf. */
+    protected function formatForMeeting(?int $meetingId): CommitteeFormat
+    {
+        if (! $meetingId) {
+            return CommitteeFormat::for(null);
+        }
+        if (! isset($this->meetingFormats[$meetingId])) {
+            $type = ManagementBookMeeting::query()->whereKey($meetingId)->with('committee:id,type')->first()?->committee?->type;
+            $this->meetingFormats[$meetingId] = CommitteeFormat::for($type);
+        }
+
+        return $this->meetingFormats[$meetingId];
+    }
+
     /** Sitzung im Team laden (ohne Rechteprüfung). */
     protected function findMeeting(int $id, Team $team): ?ManagementBookMeeting
     {
@@ -299,8 +333,18 @@ trait HandlesMeetingChildren
     }
 
     /** Prüft die Eingabe je Art; liefert eine Fehlermeldung oder null. */
-    protected function validateChildInput(string $kind, array $arguments, ?Model $existing = null): ?string
+    protected function validateChildInput(string $kind, array $arguments, ?Model $existing = null, ?CommitteeFormat $format = null): ?string
     {
+        if ($format && array_key_exists('kind', $arguments) && $arguments['kind'] !== null) {
+            $message = match ($kind) {
+                'agenda_item' => $format->validateAgendaKind((string) $arguments['kind']),
+                'decision' => $format->validateDecisionKind((string) $arguments['kind']),
+                default => null,
+            };
+            if ($message) {
+                return $message;
+            }
+        }
         foreach (['position', 'duration_minutes'] as $col) {
             if (isset($arguments[$col]) && (int) $arguments[$col] < ($col === 'position' ? 0 : 1)) {
                 return $col === 'position' ? 'position darf nicht negativ sein.' : 'duration_minutes muss mindestens 1 sein.';
@@ -313,9 +357,9 @@ trait HandlesMeetingChildren
             if (! is_array($arguments['outcome_checks'])) {
                 return 'outcome_checks muss eine Liste sein.';
             }
-            $unknown = array_diff($arguments['outcome_checks'], \Platform\ManagementBook\Enums\AgendaOutcomeCheck::values());
-            if ($unknown !== []) {
-                return 'Unbekannte outcome_checks: ' . implode(', ', $unknown) . '.';
+            $checkFormat = $format ?? CommitteeFormat::for(\Platform\ManagementBook\Enums\CommitteeType::STEERING_COMMITTEE);
+            if ($message = $checkFormat->validateChecks($arguments['outcome_checks'])) {
+                return $message;
             }
         }
         foreach (['approved_at', 'due_date'] as $col) {
@@ -370,6 +414,9 @@ trait HandlesMeetingChildren
             if (isset($fields[$col])) {
                 $fields[$col] = trim((string) $fields[$col]);
             }
+        }
+        if (array_key_exists('kind', $fields)) {
+            $fields['kind'] = ($fields['kind'] === null || trim((string) $fields['kind']) === '') ? null : trim((string) $fields['kind']);
         }
         if (array_key_exists('outcome_checks', $fields)) {
             $fields['outcome_checks'] = $fields['outcome_checks'] === null ? null : array_values(array_unique($fields['outcome_checks']));
@@ -504,7 +551,7 @@ trait HandlesMeetingChildren
             if ($denied = $this->authorizeModel($context, 'update', $meeting, 'Sitzung')) {
                 return $denied;
             }
-            if ($message = $this->validateChildInput($kind, $arguments)) {
+            if ($message = $this->validateChildInput($kind, $arguments, null, $this->formatForMeeting($meeting->id))) {
                 return ToolResult::error('VALIDATION_ERROR', $message);
             }
             $fileIds = $kind === 'document' ? (array) ($arguments['context_file_ids'] ?? []) : [];
@@ -561,7 +608,7 @@ trait HandlesMeetingChildren
             if ($required && array_key_exists($required, $arguments) && trim((string) $arguments[$required]) === '') {
                 return ToolResult::error('VALIDATION_ERROR', "{$required} darf nicht leer sein.");
             }
-            if ($message = $this->validateChildInput($kind, $arguments, $item)) {
+            if ($message = $this->validateChildInput($kind, $arguments, $item, $this->formatForMeeting($item->meeting_id))) {
                 return ToolResult::error('VALIDATION_ERROR', $message);
             }
             $addIds = $kind === 'document' ? (array) ($arguments['context_file_ids'] ?? []) : [];

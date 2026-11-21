@@ -29,6 +29,7 @@ class ManagementBookAgendaItem extends Model implements HasDisplayName
         'meeting_id',
         'position',
         'title',
+        'kind',
         'description',
         'owner_user_id',
         'owner_agent_id',

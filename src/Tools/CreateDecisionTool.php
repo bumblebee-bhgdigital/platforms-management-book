@@ -19,7 +19,7 @@ class CreateDecisionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /management-book/decisions - Legt einen Beschluss an einer Sitzung an. Pflicht: meeting_id, text. Optional: status (Default open), agenda_item_id, owner_user_id|owner_agent_id, due_date, linked_task_id (lose Planner-Verknüpfung, keine automatische Aufgabenanlage).';
+        return 'POST /management-book/decisions - Legt einen Beschluss an einer Sitzung an. Pflicht: meeting_id, text. Optional: status (Default open), agenda_item_id, owner_user_id|owner_agent_id, due_date, linked_task_id (lose Planner-Verknüpfung, keine automatische Aufgabenanlage), kind (Art je Gremientyp: LA measure/return_to_unit/escalation · Strategiemeeting direction/objective/guardrail/focus_area · Board approval/condition/rejection).';
     }
 
     public function getSchema(): array

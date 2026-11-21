@@ -24,7 +24,8 @@ class ListCommitteesTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'GET /management-book/committees - Listet Gremien eines Management Books (nur sichtbare). Einzelnes Gremium: id=<committee_id>. '
-            . 'Sonst Filter: management_book_id, type, status, search, limit/offset. Liefert auch die Mitglieder.';
+            . 'Sonst Filter: management_book_id, type, status, search, limit/offset. Liefert auch die Mitglieder, die Verortung (organization_nodes) '
+            . 'und das Format des Gremientyps (bei id=… vollständig: agenda_kinds, agenda_fields, decision_kinds, outcome.checks – damit Agenten Punkte und Beschlüsse passend anlegen).';
     }
 
     public function getSchema(): array
@@ -61,7 +62,7 @@ class ListCommitteesTool implements ToolContract, ToolMetadataContract
                     return $denied;
                 }
 
-                return ToolResult::success(['committee' => $this->committeeToArray($committee)]);
+                return ToolResult::success(['committee' => $this->committeeToArray($committee, true)]);
             }
 
             $query = ManagementBookCommittee::query()->where('team_id', $team->id)

@@ -21,7 +21,10 @@
 <x-nx-modal wire:model="showItem" size="lg">
     <x-slot name="header">{{ $editingItemId ? 'Agenda-Punkt bearbeiten' : 'Agenda-Punkt anlegen' }}</x-slot>
     <div class="space-y-4">
-        <x-nx-input-text name="itemForm.title" label="Titel" wire:model="itemForm.title" required />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+            <x-nx-input-text name="itemForm.title" label="Titel" wire:model="itemForm.title" required />
+            <x-nx-input-select name="itemForm.kind" label="Art" :options="$agendaKindOptions" wire:model.live="itemForm.kind" />
+        </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <x-nx-input-select name="itemForm.organization_entity_id" label="Einbringende Einheit" :options="$entityOptions" nullable="true" nullLabel="–" wire:model="itemForm.organization_entity_id" />
             <x-nx-input-select name="itemForm.owner_user_id" label="Verantwortlich" :options="$userOptions" nullable="true" nullLabel="–" wire:model="itemForm.owner_user_id" />
@@ -29,18 +32,21 @@
         </div>
         <x-nx-input-textarea name="itemForm.description" label="Beschreibung" wire:model="itemForm.description" rows="2" />
 
-        <div class="rounded-[8px] border border-[color:var(--nx-line)] p-4">
-            <div class="mb-3 text-sm font-medium">Leitfaden – die vier Fragen</div>
-            <div class="space-y-3">
-                <x-nx-input-textarea name="itemForm.goal" label="1. Was wollten wir erreichen?" wire:model="itemForm.goal" rows="2" placeholder="z. B. Neues Bankettangebot bis Q2 am Markt" />
-                <x-nx-input-textarea name="itemForm.observation" label="2. Was beobachten wir tatsächlich?" wire:model="itemForm.observation" rows="2" placeholder="z. B. Konzept steht, Kalkulation fehlt seit 6 Wochen" />
-                <x-nx-input-textarea name="itemForm.obstacle" label="3. Was hindert euch momentan?" wire:model="itemForm.obstacle" rows="2" placeholder="z. B. Controlling ist mit dem Jahresabschluss ausgelastet" />
+        @if(($itemForm['kind'] ?? null) !== \Platform\ManagementBook\Formats\CommitteeFormat::INFO)
+            @php $formFields = $format->agendaFields(); @endphp
+            <div class="rounded-[8px] border border-[color:var(--nx-line)] p-4">
+                <div class="mb-3 text-sm font-medium">{{ $format->texts()['guide_title'] }}</div>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <x-nx-input-textarea name="itemForm.local_solution" label="4a. Was kann der Bereich selbst lösen?" wire:model="itemForm.local_solution" rows="2" placeholder="z. B. Grobkalkulation selbst erstellen" />
-                    <x-nx-input-textarea name="itemForm.system_support" label="4b. Wobei braucht er das Gesamtsystem?" wire:model="itemForm.system_support" rows="2" placeholder="z. B. Priorisierung der Controlling-Kapazität" />
+                    @foreach($formFields as $field => $f)
+                        <div class="{{ empty($f['aside']) ? 'sm:col-span-2' : '' }}">
+                            <x-nx-input-textarea :name="'itemForm.' . $field" :label="$f['no'] . '. ' . $f['label']" wire:model="itemForm.{{ $field }}" rows="2" :placeholder="$f['placeholder']" />
+                        </div>
+                    @endforeach
                 </div>
             </div>
-        </div>
+        @else
+            <p class="m-0 text-sm text-[color:var(--nx-muted)]">Informationspunkte haben keinen Leitfaden und zählen nicht in die Erfolgsmessung.</p>
+        @endif
     </div>
     <x-slot name="footer">
         <div class="flex justify-end gap-3">
@@ -54,7 +60,8 @@
     <x-slot name="header">{{ $editingDecisionId ? 'Beschluss bearbeiten' : 'Beschluss festhalten' }}</x-slot>
     <div class="space-y-4">
         <x-nx-input-textarea name="decisionForm.text" label="Beschluss" wire:model="decisionForm.text" rows="3" required />
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <x-nx-input-select name="decisionForm.kind" label="Art" :options="$decisionKindOptions" wire:model="decisionForm.kind" />
             <x-nx-input-select name="decisionForm.status" label="Status" :options="$decisionStatusOptions" wire:model="decisionForm.status" />
             <x-nx-input-date name="decisionForm.due_date" label="Fällig" wire:model="decisionForm.due_date" />
         </div>

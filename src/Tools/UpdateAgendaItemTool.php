@@ -19,7 +19,7 @@ class UpdateAgendaItemTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /management-book/agenda_items/{id} - Ändert einen Agenda-Punkt (alle Felder frei, auch Reihenfolge per position). Pflicht: id. Nicht übergebene Felder bleiben unverändert.';
+        return 'PUT /management-book/agenda_items/{id} - Ändert einen Agenda-Punkt (alle Felder frei, auch Reihenfolge per position). Pflicht: id. Nicht übergebene Felder bleiben unverändert. kind und outcome_checks werden gegen das Format des Gremientyps geprüft.';
     }
 
     public function getSchema(): array

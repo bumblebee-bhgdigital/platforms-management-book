@@ -20,6 +20,12 @@ enum CommitteeType: string
         };
     }
 
+    /** Format des Gremientyps (Agenda-Felder, Arten, Erfolgsmessung, Leitfäden). */
+    public function format(): \Platform\ManagementBook\Formats\CommitteeFormat
+    {
+        return \Platform\ManagementBook\Formats\CommitteeFormat::for($this);
+    }
+
     /** @return string[] */
     public static function values(): array
     {

@@ -1,7 +1,8 @@
 {{--
-    Sitzungsseite (nx) mit Lenkungsausschuss-Leitfaden: breiter Kopf mit Ablauf-Hinweis je Status, Hauptspalte
-    (Agenda mit vier Fragen + Handlungsfähigkeit, Beschlüsse, Protokoll) und Seitenspalte (Teilnehmer, Unterlagen,
-    Haltung im LA, Orientierung). Haltung: Hilfe statt Macht.
+    Sitzungsseite (nx). Felder, Texte, Erfolgsmessung, Ablauf und Seitenspalte kommen aus dem Format des
+    Gremientyps ($format, src/Formats): LA = vier Fragen + Handlungsfähigkeit, Strategiemeeting = Standort + Richtung,
+    Board = Bericht + Freigabe. Breiter Kopf mit Ablauf-Hinweis je Status, Hauptspalte (Agenda, Beschlüsse, Protokoll),
+    Seitenspalte (Teilnehmer, Unterlagen, Haltung/Rolle, Orientierung).
 --}}
 <x-ui-page>
     <x-slot name="navbar">
@@ -34,18 +35,15 @@
             $present = $meeting->attendees->where('attended', true)->count();
             $planned = $items->sum('duration_minutes');
             $statusValue = $meeting->status?->value;
-            $flow = match ($statusValue) {
-                'planned' => ['icon' => 'heroicon-o-pencil-square', 'title' => 'Vorbereiten', 'text' => 'Punkte mit Leitfaden füllen, Unterlagen anhängen, Teilnehmer einladen. Gute Vorbereitung heißt: Jeder Punkt beantwortet schon vorab, was der Bereich selbst lösen kann.'],
-                'prepared' => ['icon' => 'heroicon-o-chat-bubble-left-right', 'title' => 'Durchführen', 'text' => 'Je Punkt die vier Fragen durchgehen, erst die Hindernisse verstehen, dann entscheiden. Auch „zurück an den Bereich“ ist ein gutes Ergebnis.'],
-                'held' => ['icon' => 'heroicon-o-clipboard-document-check', 'title' => 'Nachbereiten', 'text' => 'Kriterien abhaken, Protokoll freigeben, Beschlüsse verfolgen. Erst dann zeigt sich, ob die Organisation handlungsfähiger geworden ist.'],
-                'cancelled' => ['icon' => 'heroicon-o-x-circle', 'title' => 'Abgesagt', 'text' => 'Offene Punkte gehen nicht verloren – übernehmt sie in die nächste Sitzung oder gebt sie bewusst an den Bereich zurück.'],
-                default => null,
-            };
+            $flow = $format->flow($statusValue);
+            $outcome = $format->outcome();
+            $texts = $format->texts();
+            $stance = $format->stance();
         @endphp
         <div class="mx-auto w-full max-w-[1440px] space-y-8">
             {{-- Kopf --}}
             <div class="space-y-3">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Sitzung{{ $committee ? ' · ' . $committee->name : '' }}</div>
+                <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Sitzung{{ $committee ? ' · ' . $committee->name : '' }} · Format {{ $format->name() }}</div>
                 <div class="flex flex-wrap items-center gap-3">
                     <h1 class="m-0 text-3xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $meeting->title }}</h1>
                     <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Committee\Show::meetingBadge($meeting->status)" dot>{{ $meeting->status?->label() }}</x-nx-badge>
@@ -83,9 +81,9 @@
                 <div class="min-w-0 space-y-10">
                     <x-nx-stat-grid :cols="4">
                         <x-nx-stat label="Agenda" :value="$items->count() . ' Punkte'" icon="heroicon-o-list-bullet"
-                                   :hint="($capability['guided'] ? $capability['guided'] . ' mit Leitfaden' : 'noch ohne Leitfaden') . ($planned ? ' · ' . $planned . ' Min.' : '')" />
-                        <x-nx-stat label="Handlungsfähigkeit" :value="$capability['pct'] !== null ? $capability['pct'] . ' %' : '–'" icon="heroicon-o-bolt"
-                                   :hint="$capability['max'] ? $capability['done'] . ' von ' . $capability['max'] . ' Kriterien erfüllt' : 'nach dem LA bewerten'"
+                                   :hint="($capability['guided'] ? $capability['guided'] . ' eingeordnet' : 'noch ohne Einordnung') . ($planned ? ' · ' . $planned . ' Min.' : '')" />
+                        <x-nx-stat :label="$outcome['stat']" :value="$capability['pct'] !== null ? $capability['pct'] . ' %' : '–'" icon="heroicon-o-bolt"
+                                   :hint="$capability['max'] ? $capability['done'] . ' von ' . $capability['max'] . ' Kriterien erfüllt' : $outcome['pending']"
                                    :accent="$capability['pct'] === null ? null : ($capability['pct'] >= 80 ? 'var(--nx-success)' : ($capability['pct'] >= 50 ? 'var(--nx-warning)' : 'var(--nx-danger)'))" />
                         <x-nx-stat label="Offene Beschlüsse" :value="$openDec->count()" icon="heroicon-o-clipboard-document-check"
                                    :hint="$overdueDec ? $overdueDec . ' überfällig' : $decisions->count() . ' insgesamt'" :accent="$overdueDec ? 'var(--nx-danger)' : null" />
@@ -102,9 +100,7 @@
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div class="max-w-2xl space-y-1">
                                 <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Agenda <span class="font-normal text-[color:var(--nx-faint)]">{{ $items->count() }}</span></h2>
-                                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
-                                    In den LA gehört, was zwischen den Einheiten klemmt. Jeder Punkt folgt den vier Fragen – vom Ziel über das Hindernis bis zur Frage, was der Bereich selbst lösen kann und wobei er das Gesamtsystem braucht.
-                                </p>
+                                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $texts['agenda_intro'] }}</p>
                             </div>
                             @if($canEdit)
                                 <x-nx-button size="sm" wire:click="openItem">@svg('heroicon-o-plus', 'w-4 h-4') Punkt</x-nx-button>
@@ -118,7 +114,7 @@
                                 <x-nx-card>
                                     <div class="space-y-3 p-2">
                                         <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
-                                            Noch keine Agenda. Ein guter Punkt klingt zum Beispiel so: <em class="text-[color:var(--nx-text)]">„Kapazität Dezember – drei Großaufträge treffen auf das Stadion-Geschäft. Der Bereich stellt Schichten um, braucht aber eine Priorisierung zwischen den Bereichen.“</em>
+                                            Noch keine Agenda. Ein guter Punkt klingt zum Beispiel so: <em class="text-[color:var(--nx-text)]">{{ $texts['empty_agenda'] }}</em>
                                         </p>
                                         @if($canEdit)
                                             <x-nx-button size="sm" wire:click="openItem">Ersten Punkt anlegen</x-nx-button>
@@ -134,9 +130,7 @@
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div class="max-w-2xl space-y-1">
                                 <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Beschlüsse <span class="font-normal text-[color:var(--nx-faint)]">{{ $decisions->count() }}</span></h2>
-                                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
-                                    Auch „zurück an den Bereich“ ist ein guter Beschluss – Regulation heißt nicht Zentralisierung. Jeder Beschluss braucht eine verantwortliche Person und eine Frist.
-                                </p>
+                                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $texts['decision_intro'] }}</p>
                             </div>
                             @if($canEdit)
                                 <x-nx-button variant="secondary" size="sm" wire:click="openDecision">@svg('heroicon-o-plus', 'w-4 h-4') Beschluss</x-nx-button>
@@ -156,6 +150,7 @@
                                     <div class="min-w-0 flex-1">
                                         <div class="text-sm leading-relaxed {{ $d->status?->value === 'discarded' ? 'text-[color:var(--nx-faint)] line-through' : 'text-[color:var(--nx-text)]' }}">{{ $d->text }}</div>
                                         <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[color:var(--nx-muted)]">
+                                            <span class="font-medium text-[color:var(--nx-text)]">{{ $format->decisionKindLabel($d->kind) }}</span>
                                             @if($d->agenda_item_id && ($ai = $items->firstWhere('id', $d->agenda_item_id)))<span>zu {{ $ai->title }}</span>@endif
                                             @if($d->ownerUser || $d->ownerAgent)<span>{{ $d->ownerUser?->name ?? $d->ownerAgent?->name }}</span>@endif
                                             @if($d->due_date)<span class="{{ $od ? 'font-medium text-[color:var(--nx-danger)]' : '' }}">fällig {{ $d->due_date->format('d.m.Y') }}</span>@endif
@@ -289,18 +284,20 @@
                         </x-nx-card>
                     </section>
 
-                    {{-- Haltung im LA (Hilfe statt Macht) --}}
-                    <div class="space-y-2 rounded-[8px] border border-[color:var(--nx-line)] p-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Haltung im LA</div>
-                        <ol class="m-0 space-y-1.5 pl-4 text-sm leading-relaxed text-[color:var(--nx-text)]">
-                            <li>Was hindert euch daran?</li>
-                            <li>Was könnt ihr selbst verändern?</li>
-                            <li>Was müssen wir als Gesamtsystem verändern, damit ihr wirksam handeln könnt?</li>
-                        </ol>
-                        <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-faint)]">Erst Erkenntnis, dann eigene Verantwortung, dann die Rolle des Systems – nicht „Warum habt ihr das nicht erreicht?“.</p>
-                    </div>
+                    {{-- Haltung / Rolle des Gremiums (aus dem Format) --}}
+                    @if($stance)
+                        <div class="space-y-2 rounded-[8px] border border-[color:var(--nx-line)] p-4">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">{{ $stance['title'] }}</div>
+                            <ol class="m-0 space-y-1.5 pl-4 text-sm leading-relaxed text-[color:var(--nx-text)]">
+                                @foreach($stance['items'] as $line)
+                                    <li>{{ $line }}</li>
+                                @endforeach
+                            </ol>
+                            <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-faint)]">{{ $stance['note'] }}</p>
+                        </div>
+                    @endif
 
-                    @include('management-book::livewire.partials.guide-rail', ['area' => 'meeting'])
+                    @include('management-book::livewire.partials.guide-rail', ['area' => $format->guideArea()])
                 </div>
             </div>
         </div>

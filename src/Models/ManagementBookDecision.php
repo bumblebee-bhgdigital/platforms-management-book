@@ -28,6 +28,7 @@ class ManagementBookDecision extends Model implements HasDisplayName
         'meeting_id',
         'agenda_item_id',
         'text',
+        'kind',
         'status',
         'owner_user_id',
         'owner_agent_id',

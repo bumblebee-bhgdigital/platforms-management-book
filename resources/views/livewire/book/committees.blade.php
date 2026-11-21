@@ -92,6 +92,9 @@
                     <p class="m-0 line-clamp-2 text-sm leading-relaxed text-[color:var(--nx-muted)]">
                         {{ $committee->description ?: 'Noch kein Zweck beschrieben – wofür ist dieses Gremium da, und was gehört nicht hierher?' }}
                     </p>
+                    <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-faint)]">
+                        <span class="font-medium text-[color:var(--nx-muted)]">Format {{ $committee->format()->name() }}:</span> {{ $committee->format()->question() }}
+                    </p>
 
                     <dl class="m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div>

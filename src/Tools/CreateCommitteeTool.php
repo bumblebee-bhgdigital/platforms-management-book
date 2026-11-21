@@ -25,7 +25,9 @@ class CreateCommitteeTool implements ToolContract, ToolMetadataContract
     {
         return 'POST /management-book/committees - Legt ein Gremium an einem Management Book an. Pflicht: management_book_id, name. '
             . 'type (Default other), status (Default active), cadence (Freitext), chair_user_id, responsible_agent_id, signal_set_id, members[] optional. '
-            . 'Das Tool enthält keine Ablauflogik: Agenda, Regeln und Ablauf legt der Agent selbst fest.';
+            . 'organization_entity_id verortet das Gremium am Organisations-Knoten. '
+            . 'Der Typ bestimmt das Format (steering_committee: Regulation/vier Fragen, strategy_meeting: Richtung, board: Kontrolle & Freigabe); '
+            . 'Agenda und Inhalte legt der Agent selbst fest.';
     }
 
     public function getSchema(): array
@@ -57,7 +59,7 @@ class CreateCommitteeTool implements ToolContract, ToolMetadataContract
             if (! Gate::forUser($context->user)->allows('update', $book)) {
                 return ToolResult::error('ACCESS_DENIED', "Keine Berechtigung, Gremien an Management Book #{$book->id} anzulegen.");
             }
-            if ($message = $this->validateCommitteeInput($arguments, $team->id)) {
+            if ($message = $this->validateCommitteeInput($arguments, $team->id) ?? $this->validatePlacement($arguments, $context)) {
                 return ToolResult::error('VALIDATION_ERROR', $message);
             }
 
@@ -76,12 +78,13 @@ class CreateCommitteeTool implements ToolContract, ToolMetadataContract
                     'created_by' => $context->user->id,
                 ]);
                 $this->syncMembers($committee, $arguments['members'] ?? []);
+                $this->applyPlacement($committee, $arguments);
 
                 return $committee;
             });
 
             return ToolResult::success([
-                'committee' => $this->committeeToArray($committee->fresh()),
+                'committee' => $this->committeeToArray($committee->fresh(), true),
                 'message' => "Gremium '{$committee->name}' (#{$committee->id}) an Management Book #{$book->id} angelegt.",
             ]);
         } catch (\Throwable $e) {

@@ -100,6 +100,30 @@ class Guide
                 'principle' => 'Ist die Organisation nach dieser Sitzung handlungsfähiger als vorher?',
                 'lessons' => ['vier_fragen', 'hilfe_statt_macht'],
             ],
+            'meeting_strategy' => [
+                'eyebrow' => 'Strategiemeeting',
+                'title' => 'Richtung geben, nicht regulieren',
+                'lead' => 'Das Strategiemeeting beantwortet die Grundsatzfragen: Wo stehen wir, was zeichnet sich ab, wohin wollen wir? Ergebnisse sind Richtungsentscheidungen, Ziele, Leitplanken und Fokusräume.',
+                'why' => 'Was hier entschieden wird, trägt erst, wenn es im Book steht und in der Organisation ankommt. Umsetzungsfragen und Konflikte zwischen den Einheiten gehören in den Lenkungsausschuss.',
+                'principle' => 'Fokussieren heißt verzichten.',
+                'lessons' => ['regelkreis', 'regnose', 'zukunftsbild'],
+            ],
+            'meeting_board' => [
+                'eyebrow' => 'Board',
+                'title' => 'Kontrollieren und freigeben',
+                'lead' => 'Das Board versteht die Lage, prüft Abweichungen und Risiken und entscheidet über Vorlagen: Freigabe, Auflage oder Ablehnung.',
+                'why' => 'Ein Board, das sich in die Umsetzung einmischt, schwächt die Verantwortung der Geschäftsführung. Eine klare Auflage mit Frist wirkt mehr als eine lange Diskussion.',
+                'principle' => 'Das Board kontrolliert und gibt frei. Umgesetzt wird in der Organisation.',
+                'lessons' => ['regelkreis', 'betriebssystem'],
+            ],
+            'meeting_generic' => [
+                'eyebrow' => 'Sitzung',
+                'title' => 'Themen klären, Ergebnisse festhalten',
+                'lead' => 'Je Thema Ausgangslage und Ziel festhalten, Ergebnisse als Beschlüsse mit Verantwortlichen und Frist dokumentieren.',
+                'why' => 'Auch ohne feste Methodik gilt: Ein Beschluss ohne Person und Frist ist eine Absicht.',
+                'principle' => 'Ein Dokument trifft keine Entscheidungen. Es gibt ihnen eine gemeinsame Grundlage.',
+                'lessons' => ['regelkreis'],
+            ],
         ];
     }
 }

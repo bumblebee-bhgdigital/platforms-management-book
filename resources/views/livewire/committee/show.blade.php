@@ -1,6 +1,6 @@
 {{--
-    Gremium-Seite (nx): breiter Kopf, Hauptspalte (Kennzahlen, Sitzungen, offene Beschlüsse, Mitglieder – je mit Erklärung)
-    und Orientierungsspalte (Fall-Sortierer beim Lenkungsausschuss + Guide).
+    Gremium-Seite (nx): breiter Kopf mit Format des Gremientyps und Verortung in der Organisation, Hauptspalte
+    (Kennzahlen, Sitzungen, offene Beschlüsse, Mitglieder – je mit Erklärung) und Orientierungsspalte (Fall-Sortierer + Guide).
 --}}
 <x-ui-page>
     <x-slot name="navbar">
@@ -39,6 +39,13 @@
             $overdue = $openDecisions->filter(fn ($d) => $d->due_date && $d->due_date->isPast())->count();
             $capTotal = collect($capability);
             $capPct = $capTotal->sum('max') > 0 ? (int) round($capTotal->sum('done') / $capTotal->sum('max') * 100) : null;
+            $outcome = $format->outcome();
+            $sorter = match ($committee->type?->value) {
+                'steering_committee' => 'Eskalieren, wenn andere Einheiten, gemeinsame Ressourcen oder strategische Prioritäten betroffen sind – sonst lokal lösen.',
+                'strategy_meeting' => 'Richtungsfragen, Zielbild, Fokusräume und Leitplanken gehören hierher. Umsetzung und Konflikte zwischen den Einheiten gehören in den Lenkungsausschuss.',
+                'board' => 'Bericht, Kontrolle und Freigaben gehören hierher. Operative Regulation gehört in den Lenkungsausschuss, Richtungsfragen ins Strategiemeeting.',
+                default => null,
+            };
             $roleHelp = [
                 'chair' => 'leitet die Sitzung und achtet auf die Haltung: Hilfe statt Macht.',
                 'secretary' => 'hält Protokoll und Beschlüsse fest.',
@@ -62,6 +69,40 @@
                         <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->responsibleAgent->name }}</span>
                     @endif
                 </div>
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-[color:var(--nx-muted)]">
+                    @if($nodesAvailable)
+                        <span class="inline-flex items-center gap-1.5">
+                            @svg('heroicon-o-building-office-2', 'w-4 h-4 text-[color:var(--nx-faint)]')
+                            Verortung:
+                            @forelse($nodes as $node)
+                                <span class="text-[color:var(--nx-text)]">{{ $node->name }}</span>@if($node->type)<span class="text-xs text-[color:var(--nx-faint)]">{{ $node->type->name }}</span>@endif
+                            @empty
+                                <span>kein Knoten</span>
+                            @endforelse
+                        </span>
+                        @if($canEdit)
+                            <button type="button" wire:click="startPlacing" class="text-xs underline hover:text-[color:var(--nx-text)]">{{ $nodes->isEmpty() ? 'In der Organisation verorten' : 'Umhängen' }}</button>
+                            @if($nodes->isNotEmpty())
+                                <button type="button" wire:click="unplace" wire:confirm="Verortung lösen?" class="text-xs underline hover:text-[color:var(--nx-danger)]">Lösen</button>
+                            @endif
+                        @endif
+                    @endif
+                </div>
+                @if($placing)
+                    <div class="max-w-xl space-y-2 rounded-[8px] border border-[color:var(--nx-line)] p-3">
+                        <div class="flex items-center gap-2">
+                            <x-nx-input-text name="nodeSearch" placeholder="Knoten suchen, z. B. Lenkungsausschuss" wire:model.live.debounce.300ms="nodeSearch" />
+                            <x-nx-button variant="ghost" size="sm" wire:click="cancelPlacing">Abbrechen</x-nx-button>
+                        </div>
+                        @forelse($nodeCandidates as $cand)
+                            <button type="button" wire:click="placeAt({{ $cand['id'] }})" class="flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-sm hover:bg-[color:var(--nx-hover)]">
+                                <span>{{ $cand['name'] }}</span><span class="text-xs text-[color:var(--nx-faint)]">{{ $cand['type'] }}</span>
+                            </button>
+                        @empty
+                            <p class="m-0 text-xs text-[color:var(--nx-faint)]">Keine passenden Knoten mit Schreibrecht.</p>
+                        @endforelse
+                    </div>
+                @endif
                 @if($committee->description)
                     <p class="m-0 max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-[color:var(--nx-text)]">{{ $committee->description }}</p>
                 @elseif($canEdit)
@@ -69,6 +110,18 @@
                         Zweck beschreiben: Wofür ist dieses Gremium da – und was gehört nicht hierher?
                     </button>
                 @endif
+            </div>
+
+            {{-- Format des Gremientyps --}}
+            <div class="flex items-start gap-3 rounded-[8px] border border-[color:var(--nx-line)] px-5 py-4">
+                @svg('heroicon-o-squares-2x2', 'mt-0.5 w-5 h-5 shrink-0 text-[color:var(--nx-muted)]')
+                <div class="space-y-1">
+                    <div class="text-sm font-semibold text-[color:var(--nx-text)]">Format: {{ $format->name() }}</div>
+                    <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $format->summary() }}</p>
+                    <p class="m-0 text-xs text-[color:var(--nx-faint)]">
+                        Punkte: {{ implode(', ', $format->agendaKinds()) }} · Ergebnisse: {{ implode(', ', $format->decisionKinds()) }}
+                    </p>
+                </div>
             </div>
 
             <div class="grid gap-10 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -80,8 +133,8 @@
                         <x-nx-stat label="Gehaltene Sitzungen" :value="$past->where('status.value', 'held')->count()" icon="heroicon-o-check-circle" />
                         <x-nx-stat label="Offene Beschlüsse" :value="$openDecisions->count()" icon="heroicon-o-clipboard-document-check"
                                    :hint="$overdue ? $overdue . ' überfällig' : 'keine überfällig'" :accent="$overdue ? 'var(--nx-danger)' : null" />
-                        <x-nx-stat label="Handlungsfähigkeit" :value="$capPct !== null ? $capPct . ' %' : '–'" icon="heroicon-o-bolt"
-                                   :hint="$capPct !== null ? 'erfüllte Kriterien nach dem LA' : 'noch keine Kriterien bewertet'"
+                        <x-nx-stat :label="$outcome['stat']" :value="$capPct !== null ? $capPct . ' %' : '–'" icon="heroicon-o-bolt"
+                                   :hint="$capPct !== null ? 'erfüllte Kriterien nach den Sitzungen' : 'noch keine Kriterien bewertet'"
                                    :accent="$capPct === null ? null : ($capPct >= 80 ? 'var(--nx-success)' : ($capPct >= 50 ? 'var(--nx-warning)' : 'var(--nx-danger)'))" />
                     </x-nx-stat-grid>
 
@@ -127,7 +180,7 @@
                         <div class="space-y-2">
                             <div class="flex items-baseline justify-between gap-3">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Vergangen · {{ $past->count() }}</div>
-                                <div class="text-xs text-[color:var(--nx-faint)]">Maßstab: Ist die Organisation danach handlungsfähiger als vorher?</div>
+                                <div class="text-xs text-[color:var(--nx-faint)]">{{ $outcome['question'] }}</div>
                             </div>
                             <x-nx-card flush>
                                 @forelse($past as $m)
@@ -138,8 +191,8 @@
                                             <x-slot name="trailing">
                                                 <div class="flex items-center gap-2">
                                                     @if($cap)
-                                                        @php $v = \Platform\ManagementBook\Enums\AgendaOutcomeCheck::verdict((int) round($cap['pct'] / 100 * 6)); @endphp
-                                                        <x-nx-badge :variant="$v['variant']" title="{{ $cap['done'] }} von {{ $cap['max'] }} Kriterien">{{ $cap['pct'] }} % handlungsfähig</x-nx-badge>
+                                                        @php $v = $format->verdict($cap['done'], $cap['max']); @endphp
+                                                        <x-nx-badge :variant="$v['variant']" title="{{ $cap['done'] }} von {{ $cap['max'] }} Kriterien · {{ $v['label'] }}">{{ $cap['pct'] }} % {{ $outcome['stat'] }}</x-nx-badge>
                                                     @endif
                                                     <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Committee\Show::meetingBadge($m->status)" dot>{{ $m->status?->label() }}</x-nx-badge>
                                                 </div>
@@ -148,7 +201,7 @@
                                     </div>
                                 @empty
                                     <p class="m-0 px-5 py-6 text-sm leading-relaxed text-[color:var(--nx-muted)]">
-                                        Noch keine vergangenen Sitzungen. Nach jeder Sitzung zeigt sich hier, wie handlungsfähig die Organisation danach war.
+                                        Noch keine vergangenen Sitzungen. Nach jeder Sitzung zeigt sich hier, was sie bewirkt hat ({{ $outcome['stat'] }}).
                                     </p>
                                 @endforelse
                             </x-nx-card>
@@ -235,17 +288,15 @@
 
                 {{-- Orientierungsspalte --}}
                 <div class="space-y-6 self-start xl:sticky xl:top-6">
-                    @if($isSteering)
+                    @if($sorter)
                         <div class="space-y-2 rounded-[8px] border border-[color:var(--nx-line)] p-4">
                             <div class="flex items-center gap-2 text-sm font-semibold text-[color:var(--nx-text)]">
                                 @svg('heroicon-o-arrows-right-left', 'w-4 h-4 text-[color:var(--nx-info)]') Gehört das hier hin?
                             </div>
-                            <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
-                                Eskalieren, wenn andere Einheiten, gemeinsame Ressourcen oder strategische Prioritäten betroffen sind – sonst lokal lösen.
-                            </p>
+                            <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $sorter }}</p>
                         </div>
                     @endif
-                    @include('management-book::livewire.partials.guide-rail', ['area' => $isSteering ? 'committee' : 'committees'])
+                    @include('management-book::livewire.partials.guide-rail', ['area' => $isSteering ? 'committee' : (in_array($format->guideArea(), ['meeting_strategy', 'meeting_board'], true) ? $format->guideArea() : 'committees')])
                 </div>
             </div>
         </div>

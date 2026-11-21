@@ -19,7 +19,7 @@ class UpdateDecisionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /management-book/decisions/{id} - Ändert einen Beschluss (z. B. status=implemented/discarded, Verantwortlicher, Fälligkeit). Pflicht: id. Nicht übergebene Felder bleiben unverändert.';
+        return 'PUT /management-book/decisions/{id} - Ändert einen Beschluss (z. B. status=implemented/discarded, Verantwortlicher, Fälligkeit). Pflicht: id. Nicht übergebene Felder bleiben unverändert. kind wird gegen das Format des Gremientyps geprüft.';
     }
 
     public function getSchema(): array

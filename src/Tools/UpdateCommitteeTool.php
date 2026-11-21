@@ -22,7 +22,8 @@ class UpdateCommitteeTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'PUT /management-book/committees/{id} - Ändert ein Gremium. Pflicht: id. '
-            . 'Felder: name, type, description, cadence, chair_user_id, responsible_agent_id, signal_set_id, status (active/dormant/dissolved). '
+            . 'Felder: name, type, description, cadence, chair_user_id, responsible_agent_id, signal_set_id, status (active/dormant/dissolved), '
+            . 'organization_entity_id (Verortung am Organisations-Knoten, 0 = lösen). Der Typ bestimmt das Format (Agenda-Felder, Arten, Erfolgsmessung). '
             . 'members[] ersetzt die komplette Mitgliederliste (weglassen = unverändert, [] = alle entfernen). Nicht übergebene Felder bleiben unverändert.';
     }
 
@@ -58,7 +59,7 @@ class UpdateCommitteeTool implements ToolContract, ToolMetadataContract
             if (array_key_exists('name', $arguments) && trim((string) $arguments['name']) === '') {
                 return ToolResult::error('VALIDATION_ERROR', 'name darf nicht leer sein.');
             }
-            if ($message = $this->validateCommitteeInput($arguments, $team->id)) {
+            if ($message = $this->validateCommitteeInput($arguments, $team->id) ?? $this->validatePlacement($arguments, $context)) {
                 return ToolResult::error('VALIDATION_ERROR', $message);
             }
 
@@ -70,10 +71,11 @@ class UpdateCommitteeTool implements ToolContract, ToolMetadataContract
                 if (isset($arguments['members']) && is_array($arguments['members'])) {
                     $this->syncMembers($committee, $arguments['members']);
                 }
+                $this->applyPlacement($committee, $arguments);
             });
 
             return ToolResult::success([
-                'committee' => $this->committeeToArray($committee->fresh()),
+                'committee' => $this->committeeToArray($committee->fresh(), true),
                 'message' => "Gremium #{$committee->id} aktualisiert.",
             ]);
         } catch (\Throwable $e) {

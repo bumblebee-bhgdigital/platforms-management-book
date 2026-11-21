@@ -10,6 +10,7 @@ use Platform\ManagementBook\Enums\CommitteeStatus;
 use Platform\ManagementBook\Enums\CommitteeType;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
 use Platform\ManagementBook\Models\ManagementBookCommitteeMember;
+use Platform\ManagementBook\Services\CommitteeNodeService;
 
 /** Gemeinsame Helfer der management-book.committees.*-Tools (Serialisierung, Rechte, Mitglieder). */
 trait HandlesCommittees
@@ -23,10 +24,17 @@ trait HandlesCommittees
             : ToolResult::error('ACCESS_DENIED', "Keine Berechtigung ({$ability}) für Gremium #{$committee->id}.");
     }
 
-    /** @return array<string,mixed> */
-    protected function committeeToArray(ManagementBookCommittee $c): array
+    /**
+     * @param bool $withFormat volle Format-Beschreibung (Felder, Arten, Kriterien) statt nur Name/Leitfrage
+     * @return array<string,mixed>
+     */
+    protected function committeeToArray(ManagementBookCommittee $c, bool $withFormat = false): array
     {
         $c->loadMissing('members');
+        $format = $c->format();
+        $nodeIds = app(CommitteeNodeService::class)->nodeIds($c);
+        $nodeNames = $nodeIds === [] || ! class_exists(\Platform\Organization\Models\OrganizationEntity::class) ? []
+            : \Platform\Organization\Models\OrganizationEntity::whereIn('id', $nodeIds)->pluck('name', 'id')->all();
 
         return [
             'id' => $c->id,
@@ -43,6 +51,8 @@ trait HandlesCommittees
             'signal_set_id' => $c->signal_set_id,
             'status' => $c->status?->value,
             'status_label' => $c->status?->label(),
+            'format' => $withFormat ? $format->toArray() : ['key' => $format->key(), 'name' => $format->name(), 'question' => $format->question()],
+            'organization_nodes' => array_map(fn ($id) => ['entity_id' => $id, 'entity_name' => $nodeNames[$id] ?? null], $nodeIds),
             'members' => $c->members->map(fn (ManagementBookCommitteeMember $m) => [
                 'user_id' => $m->user_id,
                 'agent_id' => $m->agent_id,
@@ -67,6 +77,7 @@ trait HandlesCommittees
             'responsible_agent_id' => ['type' => 'integer', 'description' => 'Verantwortlicher Agent (User-ID eines Agent-Users).'],
             'signal_set_id' => ['type' => 'integer', 'description' => 'Optional: Verweis auf ein Signal-Set im Signals-Modul.'],
             'status' => ['type' => 'string', 'enum' => CommitteeStatus::values(), 'description' => 'Status: active, dormant (ruhend), dissolved (aufgelöst).'],
+            'organization_entity_id' => ['type' => 'integer', 'description' => 'Optional: Verortung des Gremiums an einem Organisations-Knoten (typischerweise der Gremien-Knoten, z. B. „BHG.DIGITAL Lenkungsausschuss“). Ersetzt eine bestehende Verortung; 0 löst sie. Alternativ: organization.entity.link.POST mit object_type=management_book_committee.'],
             'members' => [
                 'type' => 'array',
                 'description' => 'Mitglieder; ersetzt beim Ändern die gesamte Liste. Je Eintrag genau eines von user_id/agent_id plus role.',
@@ -116,6 +127,34 @@ trait HandlesCommittees
         }
 
         return null;
+    }
+
+    /** Prüft organization_entity_id (Schreibrecht auf den Knoten); Fehlermeldung oder null. */
+    protected function validatePlacement(array $arguments, ToolContext $context): ?string
+    {
+        if (! array_key_exists('organization_entity_id', $arguments) || $arguments['organization_entity_id'] === null) {
+            return null;
+        }
+        $entityId = (int) $arguments['organization_entity_id'];
+        if ($entityId === 0) {
+            return null;
+        }
+        if (! app(CommitteeNodeService::class)->available()) {
+            return 'Organisations-Modul nicht verfügbar – Verortung nicht möglich.';
+        }
+
+        return $this->canWriteEntity($context, $entityId) ? null : "Kein Schreibrecht auf Knoten #{$entityId} (oder Knoten unbekannt).";
+    }
+
+    /** Wendet organization_entity_id an (0 = lösen). */
+    protected function applyPlacement(ManagementBookCommittee $committee, array $arguments): void
+    {
+        if (! array_key_exists('organization_entity_id', $arguments) || $arguments['organization_entity_id'] === null) {
+            return;
+        }
+        $entityId = (int) $arguments['organization_entity_id'];
+        $service = app(CommitteeNodeService::class);
+        $entityId === 0 ? $service->unplace($committee) : $service->place($committee, $entityId);
     }
 
     /** Ersetzt die Mitgliederliste des Gremiums. */

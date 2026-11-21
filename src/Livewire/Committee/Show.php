@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Platform\ManagementBook\Enums\AgendaOutcomeCheck;
 use Platform\ManagementBook\Enums\CommitteeMemberRole;
 use Platform\ManagementBook\Enums\CommitteeStatus;
 use Platform\ManagementBook\Enums\CommitteeType;
@@ -15,10 +14,12 @@ use Platform\ManagementBook\Enums\MeetingStatus;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
 use Platform\ManagementBook\Models\ManagementBookDecision;
 use Platform\ManagementBook\Models\ManagementBookMeeting;
+use Platform\ManagementBook\Services\CommitteeNodeService;
+use Platform\Organization\Models\OrganizationEntity;
 
 /**
- * Gremium-Seite: Stammdaten, Mitglieder, Sitzungen (anstehend/vergangen mit Handlungsfähigkeit)
- * und offene Beschlüsse über alle Sitzungen. Reine Datenhaltung, keine Ablauflogik.
+ * Gremium-Seite: Stammdaten, Format des Gremientyps, Verortung in der Organisation, Mitglieder,
+ * Sitzungen (anstehend/vergangen mit Erfolgsmessung des Formats) und offene Beschlüsse über alle Sitzungen.
  */
 class Show extends Component
 {
@@ -31,6 +32,9 @@ class Show extends Component
     public array $form = [];
     public array $memberForm = ['user_id' => null, 'role' => 'member'];
     public array $meetingForm = ['title' => '', 'scheduled_at' => '', 'duration_minutes' => 90, 'location' => ''];
+
+    public bool $placing = false;
+    public string $nodeSearch = '';
 
     public function mount(ManagementBookCommittee $committee): void
     {
@@ -90,6 +94,60 @@ class Show extends Component
         $this->committee->delete();
 
         return $this->redirect(route('management-book.books.show', $bookId) . '?tab=committees', navigate: true);
+    }
+
+    // ── Verortung in der Organisation ────────────────────────
+
+    public function startPlacing(): void
+    {
+        Gate::authorize('update', $this->committee);
+        $this->placing = true;
+        $this->nodeSearch = '';
+    }
+
+    public function cancelPlacing(): void
+    {
+        $this->placing = false;
+        $this->nodeSearch = '';
+    }
+
+    public function placeAt(int $entityId): void
+    {
+        Gate::authorize('update', $this->committee);
+        abort_unless(in_array($entityId, $this->writableEntityIds(), true), 403, 'Kein Schreibrecht auf diesen Knoten.');
+        app(CommitteeNodeService::class)->place($this->committee, $entityId);
+        $this->cancelPlacing();
+    }
+
+    public function unplace(): void
+    {
+        Gate::authorize('update', $this->committee);
+        app(CommitteeNodeService::class)->unplace($this->committee);
+    }
+
+    /** @return int[] */
+    protected function writableEntityIds(): array
+    {
+        if (! class_exists(\Platform\Organization\Authz\DimensionLinkAuthorizer::class) || ! Auth::user()) {
+            return [];
+        }
+
+        return (new \Platform\Organization\Authz\DimensionLinkAuthorizer())->writableEntityIds(Auth::user());
+    }
+
+    /** @return array<int, array{id:int,name:string,type:?string}> */
+    protected function nodeCandidates(): array
+    {
+        $writable = $this->placing ? $this->writableEntityIds() : [];
+        if ($writable === []) {
+            return [];
+        }
+        $search = trim($this->nodeSearch);
+
+        return OrganizationEntity::query()->with('type:id,name')->whereIn('id', $writable)->where('is_active', true)
+            ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")))
+            ->orderBy('name')->limit($search !== '' ? 20 : 10)->get(['id', 'name', 'entity_type_id'])
+            ->map(fn ($e) => ['id' => (int) $e->id, 'name' => $e->name, 'type' => $e->type?->name])->all();
     }
 
     // ── Mitglieder ───────────────────────────────────────────
@@ -184,7 +242,7 @@ class Show extends Component
 
         $meetings = $committee->meetings()
             ->withCount(['agendaItems', 'decisions'])
-            ->with('agendaItems:id,meeting_id,outcome_checks,goal,observation,obstacle,local_solution,system_support')
+            ->with('agendaItems:id,meeting_id,kind,outcome_checks,goal,observation,obstacle,local_solution,system_support')
             ->orderByDesc('scheduled_at')
             ->get();
 
@@ -193,17 +251,19 @@ class Show extends Component
         $upcoming = $meetings->filter($isUpcoming)->sortBy('scheduled_at')->values();
         $past = $meetings->reject($isUpcoming)->values();
 
-        // Handlungsfähigkeit je gehaltener Sitzung: erfüllte Kriterien / mögliche Kriterien über Punkte mit Leitfaden
+        // Erfolg je vergangener Sitzung nach dem Format (LA: Handlungsfähigkeit, Strategie: Richtungsklarheit, …)
+        $format = $committee->format();
         $capability = [];
         foreach ($past as $m) {
-            $guided = $m->agendaItems->filter(fn ($i) => filled($i->goal) || filled($i->obstacle) || filled($i->system_support) || ! empty($i->outcome_checks));
-            if ($guided->isEmpty()) {
-                continue;
+            $a = $format->assess($m->agendaItems);
+            if ($a['guided'] > 0) {
+                $capability[$m->id] = $a;
             }
-            $done = $guided->sum(fn ($i) => count($i->outcome_checks ?? []));
-            $max = $guided->count() * count(AgendaOutcomeCheck::cases());
-            $capability[$m->id] = ['done' => $done, 'max' => $max, 'pct' => (int) round($done / max($max, 1) * 100)];
         }
+
+        $nodeService = app(CommitteeNodeService::class);
+        $nodeIds = $nodeService->nodeIds($committee);
+        $nodes = $nodeIds === [] ? collect() : OrganizationEntity::with('type:id,name')->whereIn('id', $nodeIds)->get(['id', 'name', 'entity_type_id']);
 
         $openDecisions = ManagementBookDecision::query()
             ->whereIn('meeting_id', $meetings->pluck('id'))
@@ -221,6 +281,10 @@ class Show extends Component
             'upcoming' => $upcoming,
             'past' => $past,
             'capability' => $capability,
+            'format' => $format,
+            'nodes' => $nodes,
+            'nodesAvailable' => $nodeService->available(),
+            'nodeCandidates' => $this->nodeCandidates(),
             'openDecisions' => $openDecisions,
             'canEdit' => Gate::allows('update', $committee),
             'typeOptions' => array_map(fn ($t) => ['value' => $t->value, 'label' => $t->label()], CommitteeType::cases()),

@@ -1,15 +1,12 @@
-{{-- Ein Agenda-Punkt mit LA-Leitfaden (vier Fragen) und Handlungsfähigkeits-Kriterien. --}}
+{{-- Ein Agenda-Punkt mit dem Leitfaden des Formats (LA: vier Fragen; Strategie: Ausgangslage/Richtungsfrage; Board: Lage/Vorlage/Abweichung) und dessen Erfolgskriterien. --}}
 @php
-    $checked = $item->outcome_checks ?? [];
-    $guided = filled($item->goal) || filled($item->observation) || filled($item->obstacle) || filled($item->local_solution) || filled($item->system_support) || ! empty($checked);
-    $verdict = $guided ? \Platform\ManagementBook\Enums\AgendaOutcomeCheck::verdict(count($checked)) : null;
-    $questions = [
-        ['goal', '1', 'Was wollten wir erreichen?'],
-        ['observation', '2', 'Was beobachten wir tatsächlich?'],
-        ['obstacle', '3', 'Was hindert euch momentan?'],
-        ['local_solution', '4a', 'Was kann der Bereich selbst lösen?'],
-        ['system_support', '4b', 'Wobei braucht er das Gesamtsystem?'],
-    ];
+    $isInfo = $item->kind === \Platform\ManagementBook\Formats\CommitteeFormat::INFO;
+    $checked = $format->checksOf($item);
+    $checkMax = count($checks);
+    $guided = $format->isGuided($item);
+    $verdict = $guided ? $format->verdict(count($checked), $checkMax) : null;
+    $fields = $format->agendaFields();
+    $hints = $format->itemHints($item);
 @endphp
 <x-nx-card flush wire:key="agenda-{{ $item->id }}">
     <div x-data="{ open: {{ $guided ? 'true' : 'false' }} }">
@@ -21,14 +18,15 @@
                     @svg('heroicon-o-chevron-down', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)] transition-transform', ['x-bind:class' => "open ? 'rotate-180' : ''"])
                 </div>
                 <div class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[color:var(--nx-muted)]">
+                    <span class="font-medium text-[color:var(--nx-text)]">{{ $format->agendaKindLabel($item->kind) }}</span>
                     @if($item->organization_entity_id)<span>{{ $entityNames[$item->organization_entity_id] ?? 'Einheit #' . $item->organization_entity_id }}</span>@endif
                     @if($item->ownerUser)<span>{{ $item->ownerUser->name }}</span>@endif
                     @if($item->duration_minutes)<span>{{ $item->duration_minutes }} Min.</span>@endif
-                    @unless($guided)<span class="text-[color:var(--nx-faint)]">ohne Leitfaden – aufklappen und die vier Fragen beantworten</span>@endunless
+                    @unless($guided || $isInfo)<span class="text-[color:var(--nx-faint)]">{{ $texts['unguided'] }}</span>@endunless
                 </div>
             </button>
             @if($verdict)
-                <x-nx-badge :variant="$verdict['variant']" title="{{ count($checked) }} von 6 Kriterien">{{ count($checked) }}/6 · {{ $verdict['label'] }}</x-nx-badge>
+                <x-nx-badge :variant="$verdict['variant']" title="{{ count($checked) }} von {{ $checkMax }} Kriterien">{{ count($checked) }}/{{ $checkMax }} · {{ $verdict['label'] }}</x-nx-badge>
             @endif
             @if($canEdit)
                 <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -49,56 +47,55 @@
                 <p class="m-0 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $item->description }}</p>
             @endif
 
-            {{-- Die vier Fragen --}}
-            <div class="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
-                @foreach($questions as [$field, $no, $question])
-                    <div class="space-y-1 {{ $field === 'goal' || $field === 'observation' || $field === 'obstacle' ? '' : 'md:border-l-2 md:border-[color:var(--nx-line)] md:pl-4' }}">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">
-                            <span class="tabular-nums">{{ $no }}</span> · {{ $question }}
+            @unless($isInfo)
+                {{-- Leitfaden des Formats --}}
+                <div class="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
+                    @foreach($fields as $field => $f)
+                        <div class="space-y-1 {{ ! empty($f['aside']) ? 'md:border-l-2 md:border-[color:var(--nx-line)] md:pl-4' : '' }}">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">
+                                <span class="tabular-nums">{{ $f['no'] }}</span> · {{ $f['label'] }}
+                            </div>
+                            @if(filled($item->{$field}))
+                                <div class="whitespace-pre-line text-[15px] leading-relaxed text-[color:var(--nx-text)]">{{ $item->{$field} }}</div>
+                            @else
+                                <div class="text-sm text-[color:var(--nx-faint)]">noch offen</div>
+                            @endif
                         </div>
-                        @if(filled($item->{$field}))
-                            <div class="whitespace-pre-line text-[15px] leading-relaxed text-[color:var(--nx-text)]">{{ $item->{$field} }}</div>
-                        @else
-                            <div class="text-sm text-[color:var(--nx-faint)]">noch offen</div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-
-            @if(blank($item->local_solution))
-                <x-nx-callout variant="warning" icon="heroicon-o-exclamation-triangle">Ohne Antwort auf 4a droht Mikromanagement: Was bleibt beim Bereich?</x-nx-callout>
-            @endif
-            @if(blank($item->system_support))
-                <x-nx-callout variant="info" icon="heroicon-o-information-circle">Wenn das Gesamtsystem nichts beitragen muss – gehört der Punkt überhaupt in den LA?</x-nx-callout>
-            @endif
-
-            {{-- Nach dem LA: Handlungsfähigkeit --}}
-            <div class="space-y-3 rounded-[8px] border border-[color:var(--nx-line)] p-4">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <div class="text-sm font-semibold text-[color:var(--nx-text)]">Nach dem LA – was trifft zu?</div>
-                        <div class="text-xs text-[color:var(--nx-muted)]">Maßstab: Ist die Organisation danach handlungsfähiger als vorher?</div>
-                    </div>
-                    @php $verdictNow = \Platform\ManagementBook\Enums\AgendaOutcomeCheck::verdict(count($checked)); @endphp
-                    <x-nx-badge :variant="count($checked) ? $verdictNow['variant'] : 'neutral'">
-                        {{ count($checked) }} von 6{{ count($checked) ? ' · ' . $verdictNow['label'] : ' · noch nicht bewertet' }}
-                    </x-nx-badge>
-                </div>
-                <div class="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                    @foreach($checks as $check)
-                        @php $on = in_array($check->value, $checked, true); @endphp
-                        <button type="button" @if($canEdit) wire:click="toggleCheck({{ $item->id }}, '{{ $check->value }}')" @endif
-                                class="flex items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-left text-sm transition-colors {{ $canEdit ? 'hover:bg-[color:var(--nx-hover)]' : 'cursor-default' }} {{ $on ? 'text-[color:var(--nx-text)]' : 'text-[color:var(--nx-muted)]' }}">
-                            @svg($on ? 'heroicon-s-check-circle' : 'heroicon-o-stop', 'w-5 h-5 shrink-0 ' . ($on ? 'text-[color:var(--nx-success)]' : 'text-[color:var(--nx-faint)]'))
-                            {{ $check->label() }}
-                        </button>
                     @endforeach
                 </div>
-            </div>
+
+                @foreach($hints as $hint)
+                    <x-nx-callout :variant="$hint['variant']" :icon="$hint['icon']">{{ $hint['text'] }}</x-nx-callout>
+                @endforeach
+
+                {{-- Nach der Sitzung: Erfolgskriterien des Formats --}}
+                <div class="space-y-3 rounded-[8px] border border-[color:var(--nx-line)] p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div class="text-sm font-semibold text-[color:var(--nx-text)]">{{ $outcome['title'] }}</div>
+                            <div class="text-xs text-[color:var(--nx-muted)]">{{ $outcome['question'] }}</div>
+                        </div>
+                        @php $verdictNow = $format->verdict(count($checked), $checkMax); @endphp
+                        <x-nx-badge :variant="count($checked) ? $verdictNow['variant'] : 'neutral'">
+                            {{ count($checked) }} von {{ $checkMax }}{{ count($checked) ? ' · ' . $verdictNow['label'] : ' · noch nicht bewertet' }}
+                        </x-nx-badge>
+                    </div>
+                    <div class="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                        @foreach($checks as $checkValue => $checkLabel)
+                            @php $on = in_array($checkValue, $checked, true); @endphp
+                            <button type="button" @if($canEdit) wire:click="toggleCheck({{ $item->id }}, '{{ $checkValue }}')" @endif
+                                    class="flex items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-left text-sm transition-colors {{ $canEdit ? 'hover:bg-[color:var(--nx-hover)]' : 'cursor-default' }} {{ $on ? 'text-[color:var(--nx-text)]' : 'text-[color:var(--nx-muted)]' }}">
+                                @svg($on ? 'heroicon-s-check-circle' : 'heroicon-o-stop', 'w-5 h-5 shrink-0 ' . ($on ? 'text-[color:var(--nx-success)]' : 'text-[color:var(--nx-faint)]'))
+                                {{ $checkLabel }}
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+            @endunless
 
             @if($canEdit)
                 <div class="flex gap-2">
-                    <x-nx-button variant="ghost" size="sm" wire:click="openItem({{ $item->id }})">@svg('heroicon-o-pencil-square', 'w-4 h-4') Leitfaden bearbeiten</x-nx-button>
+                    <x-nx-button variant="ghost" size="sm" wire:click="openItem({{ $item->id }})">@svg('heroicon-o-pencil-square', 'w-4 h-4') {{ $texts['guide_button'] }}</x-nx-button>
                     <x-nx-button variant="ghost" size="sm" wire:click="openDecision(null, {{ $item->id }})">@svg('heroicon-o-clipboard-document-check', 'w-4 h-4') Beschluss zu diesem Punkt</x-nx-button>
                 </div>
             @endif
