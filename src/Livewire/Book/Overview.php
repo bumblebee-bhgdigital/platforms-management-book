@@ -63,13 +63,13 @@ class Overview extends Component
             $y = $cy + $r * sin($a);
             $cos = cos($a);
             $sin = sin($a);
-            $lines = explode("\n", wordwrap($s['name'], 14, "\n", true));
+            $lines = explode("\n", wordwrap($s['name'], 14, "\n", false));
             $lr = $r + 46;
             $lx = $cx + $lr * $cos;
             $ly = $cy + $lr * $sin;
             $anchor = $cos > 0.3 ? 'start' : ($cos < -0.3 ? 'end' : 'middle');
             // Zeilen so setzen, dass der Block oben über, unten unter und seitlich mittig zur Station steht
-            $lineH = 16;
+            $lineH = 21;
             $first = match (true) {
                 $sin < -0.7 => $ly - ($lineH * (count($lines) - 1)),
                 $sin > 0.7 => $ly + 8,

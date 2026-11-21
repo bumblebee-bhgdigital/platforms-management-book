@@ -253,7 +253,7 @@
                   </ol>
                   <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-muted)]">Danach beginnt der Kreis von vorn, mit mehr Wissen als beim letzten Mal.</p>
               </section>
-              @include('management-book::livewire.partials.guide-rail', ['area' => 'dashboard'])
+              @include('management-book::livewire.partials.guide-rail', ['area' => 'dashboard', 'intro' => false])
           </div>
         </div>
       </div>

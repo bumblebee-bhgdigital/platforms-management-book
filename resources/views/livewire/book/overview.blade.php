@@ -79,10 +79,10 @@
             </p>
         </div>
 
-        <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <div class="grid grid-cols-1 items-center gap-8 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
             {{-- Kreis (ab md) --}}
             <div class="hidden md:block">
-                <svg viewBox="-70 20 740 560" class="block h-auto w-full max-w-[560px]" role="img" aria-label="Regelkreis mit acht Stationen">
+                <svg viewBox="-70 20 740 560" class="block h-auto w-full max-w-[680px]" role="img" aria-label="Regelkreis mit acht Stationen">
                     <defs>
                         <marker id="mb-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                             <path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--nx-line-strong);" />
@@ -94,12 +94,12 @@
                     @endforeach
 
                     {{-- Mitte: ausgewählte Station --}}
-                    <text x="{{ $ring['cx'] }}" y="{{ $ring['cy'] - 22 }}" text-anchor="middle" style="fill: var(--nx-faint); font-size: 12px; letter-spacing: .08em;">STATION {{ $station + 1 }} / 8</text>
+                    <text x="{{ $ring['cx'] }}" y="{{ $ring['cy'] - 22 }}" text-anchor="middle" style="fill: var(--nx-faint); font-size: 14px; letter-spacing: .08em;">STATION {{ $station + 1 }} / 8</text>
                     @foreach(explode("\n", wordwrap($current['name'], 18, "\n", true)) as $li => $line)
-                        <text x="{{ $ring['cx'] }}" y="{{ $ring['cy'] + 4 + $li * 22 }}" text-anchor="middle" style="fill: var(--nx-text); font-size: 19px; font-weight: 600;">{{ $line }}</text>
+                        <text x="{{ $ring['cx'] }}" y="{{ $ring['cy'] + 4 + $li * 28 }}" text-anchor="middle" style="fill: var(--nx-text); font-size: 24px; font-weight: 600;">{{ $line }}</text>
                     @endforeach
                     <text x="{{ $ring['cx'] }}" y="{{ $ring['cy'] + 36 + (count(explode("\n", wordwrap($current['name'], 18, "\n", true))) - 1) * 22 }}" text-anchor="middle"
-                          style="fill: {{ $stateColor[$current['state']] }}; font-size: 13px; font-weight: 500;">{{ $states[$current['state']]['label'] }}</text>
+                          style="fill: {{ $stateColor[$current['state']] }}; font-size: 16px; font-weight: 500;">{{ $states[$current['state']]['label'] }}</text>
 
                     {{-- Stationen --}}
                     @foreach($ring['nodes'] as $idx => $node)
@@ -111,13 +111,13 @@
                                     style="fill: {{ $sel ? 'var(--nx-accent)' : 'var(--nx-surface)' }}; stroke: {{ $sel ? 'var(--nx-accent)' : $col }};"
                                     stroke-width="{{ $s['state'] === 'untracked' ? 1.5 : 2.5 }}" @if($s['state'] === 'untracked' && ! $sel) stroke-dasharray="4 3" @endif />
                             <text x="{{ $node['x'] }}" y="{{ $node['y'] + 5 }}" text-anchor="middle"
-                                  style="fill: {{ $sel ? 'var(--nx-on-accent)' : 'var(--nx-text)' }}; font-size: 15px; font-weight: 600;">{{ $idx + 1 }}</text>
+                                  style="fill: {{ $sel ? 'var(--nx-on-accent)' : 'var(--nx-text)' }}; font-size: 18px; font-weight: 600;">{{ $idx + 1 }}</text>
                             @if(in_array($s['state'], ['done', 'attention'], true))
                                 <circle cx="{{ $node['x'] + 17 }}" cy="{{ $node['y'] - 17 }}" r="6" style="fill: {{ $col }}; stroke: var(--nx-surface);" stroke-width="2" />
                             @endif
                             @foreach($node['lines'] as $li => $line)
                                 <text x="{{ $node['lx'] }}" y="{{ $node['ly'] + $li * $node['lineH'] }}" text-anchor="{{ $node['anchor'] }}"
-                                      style="fill: {{ $sel ? 'var(--nx-text)' : 'var(--nx-muted)' }}; font-size: 14px; font-weight: {{ $sel ? 600 : 500 }};">{{ $line }}</text>
+                                      style="fill: {{ $sel ? 'var(--nx-text)' : 'var(--nx-muted)' }}; font-size: 19px; font-weight: {{ $sel ? 600 : 500 }};">{{ $line }}</text>
                             @endforeach
                         </g>
                     @endforeach

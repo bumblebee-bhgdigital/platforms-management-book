@@ -3,15 +3,20 @@
     Weitere Rail-Inhalte (z. B. „Erste Schritte“) als eigenes Partial davor/danach einbinden.
 
     @include('management-book::livewire.partials.guide-rail', ['area' => 'strategy'])
+    'intro' => false blendet Eyebrow/Titel/Erklärung aus (wenn die Seite sie schon oben zeigt).
 --}}
 @php $g = \Platform\ManagementBook\Support\Guide::for($area ?? 'overview'); @endphp
-<aside class="space-y-5 text-sm">
+<aside class="space-y-6 text-sm">
+    @if($intro ?? true)
     <div class="space-y-3">
         <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">{{ $g['eyebrow'] }}</div>
         <h3 class="m-0 text-base font-semibold leading-snug text-[color:var(--nx-text)]">{{ $g['title'] }}</h3>
         <p class="m-0 leading-relaxed text-[color:var(--nx-muted)]">{{ $g['lead'] }}</p>
         <p class="m-0 leading-relaxed text-[color:var(--nx-muted)]">{{ $g['why'] }}</p>
     </div>
+    @else
+    <p class="m-0 leading-relaxed text-[color:var(--nx-muted)]">{{ $g['why'] }}</p>
+    @endif
 
     <figure class="m-0 border-l-2 border-[color:var(--nx-line-strong)] pl-3">
         <blockquote class="m-0 text-[15px] font-medium leading-snug text-[color:var(--nx-text)]">„{{ $g['principle'] }}“</blockquote>
@@ -19,7 +24,7 @@
     </figure>
 
     @if($g['lessons'])
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 border-t border-[color:var(--nx-line)] pt-4">
             <div class="text-xs font-medium text-[color:var(--nx-muted)]">Vertiefen in der Academy</div>
             @foreach($g['lessons'] as $lesson)
                 @if($lesson['url'])
