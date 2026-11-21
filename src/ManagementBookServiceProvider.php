@@ -201,6 +201,7 @@ class ManagementBookServiceProvider extends ServiceProvider
         $this->registerPolicies();
         $this->registerEntityLinkProvider();
         $this->registerImpactSource();
+        $this->registerStrategySource();
         $this->registerTools();
 
         /**
@@ -235,6 +236,22 @@ class ManagementBookServiceProvider extends ServiceProvider
             }
         } catch (\Throwable $e) {
             // People-Modul nicht geladen
+        }
+    }
+
+    /**
+     * Strategie-Quelle der Organisation (lose Kopplung): Brief, Portfolio-/Agenten-API und Entity-Seite
+     * lesen die Strategie eines Knotens aus seinem aktiven Book. Ohne Registry (ältere Organization) nichts tun.
+     */
+    protected function registerStrategySource(): void
+    {
+        try {
+            if (class_exists(\Platform\Organization\Strategy\StrategySources::class)
+                && interface_exists(\Platform\Organization\Contracts\StrategySource::class)) {
+                \Platform\Organization\Strategy\StrategySources::register(new \Platform\ManagementBook\Organization\ManagementBookStrategySource());
+            }
+        } catch (\Throwable $e) {
+            // Organization-Modul nicht geladen
         }
     }
 
