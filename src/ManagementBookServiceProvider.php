@@ -414,7 +414,6 @@ class ManagementBookServiceProvider extends ServiceProvider
             $registry->register(new \Platform\ManagementBook\Tools\CreateRiskTool());
             $registry->register(new \Platform\ManagementBook\Tools\UpdateRiskTool());
             $registry->register(new \Platform\ManagementBook\Tools\DeleteRiskTool());
-            $registry->register(new \Platform\ManagementBook\Tools\ImportOrganizationStrategyTool());
         } catch (\Throwable $e) {
             // ToolRegistry nicht verfügbar
         }
