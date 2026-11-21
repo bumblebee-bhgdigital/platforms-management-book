@@ -11,20 +11,20 @@
         ['system_support', '4b', 'Wobei braucht er das Gesamtsystem?'],
     ];
 @endphp
-<x-nx-card flush class="mb-3" wire:key="agenda-{{ $item->id }}">
+<x-nx-card flush wire:key="agenda-{{ $item->id }}">
     <div x-data="{ open: {{ $guided ? 'true' : 'false' }} }">
-        <div class="group flex items-start gap-3 px-4 py-3">
-            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--nx-accent-soft)] text-xs font-semibold tabular-nums text-[color:var(--nx-muted)]">{{ $idx + 1 }}</span>
+        <div class="group flex items-start gap-4 px-5 py-4">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--nx-accent-soft)] text-xs font-semibold tabular-nums text-[color:var(--nx-muted)]">{{ $idx + 1 }}</span>
             <button type="button" class="min-w-0 flex-1 text-left" @click="open = ! open">
                 <div class="flex items-center gap-2">
-                    <span class="truncate text-sm font-medium text-[color:var(--nx-text)]">{{ $item->title }}</span>
+                    <span class="truncate text-[15px] font-semibold text-[color:var(--nx-text)]">{{ $item->title }}</span>
                     @svg('heroicon-o-chevron-down', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)] transition-transform', ['x-bind:class' => "open ? 'rotate-180' : ''"])
                 </div>
                 <div class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[color:var(--nx-muted)]">
                     @if($item->organization_entity_id)<span>{{ $entityNames[$item->organization_entity_id] ?? 'Einheit #' . $item->organization_entity_id }}</span>@endif
                     @if($item->ownerUser)<span>{{ $item->ownerUser->name }}</span>@endif
                     @if($item->duration_minutes)<span>{{ $item->duration_minutes }} Min.</span>@endif
-                    @unless($guided)<span class="text-[color:var(--nx-faint)]">ohne Leitfaden</span>@endunless
+                    @unless($guided)<span class="text-[color:var(--nx-faint)]">ohne Leitfaden – aufklappen und die vier Fragen beantworten</span>@endunless
                 </div>
             </button>
             @if($verdict)
@@ -44,21 +44,22 @@
             @endif
         </div>
 
-        <div x-show="open" x-cloak class="space-y-4 border-t border-[color:var(--nx-line)] px-4 py-4">
+        <div x-show="open" x-cloak class="space-y-6 border-t border-[color:var(--nx-line)] px-5 py-5">
             @if($item->description)
-                <p class="m-0 whitespace-pre-line text-sm text-[color:var(--nx-muted)]">{{ $item->description }}</p>
+                <p class="m-0 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $item->description }}</p>
             @endif
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {{-- Die vier Fragen --}}
+            <div class="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
                 @foreach($questions as [$field, $no, $question])
-                    <div class="rounded-[6px] border border-[color:var(--nx-line)] p-3">
-                        <div class="mb-1 flex items-center gap-1.5 text-xs font-medium text-[color:var(--nx-muted)]">
-                            <span class="tabular-nums text-[color:var(--nx-faint)]">{{ $no }}</span> {{ $question }}
+                    <div class="space-y-1 {{ $field === 'goal' || $field === 'observation' || $field === 'obstacle' ? '' : 'md:border-l-2 md:border-[color:var(--nx-line)] md:pl-4' }}">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">
+                            <span class="tabular-nums">{{ $no }}</span> · {{ $question }}
                         </div>
                         @if(filled($item->{$field}))
-                            <div class="whitespace-pre-line text-sm text-[color:var(--nx-text)]">{{ $item->{$field} }}</div>
+                            <div class="whitespace-pre-line text-[15px] leading-relaxed text-[color:var(--nx-text)]">{{ $item->{$field} }}</div>
                         @else
-                            <div class="text-sm text-[color:var(--nx-faint)]">–</div>
+                            <div class="text-sm text-[color:var(--nx-faint)]">noch offen</div>
                         @endif
                     </div>
                 @endforeach
@@ -71,14 +72,24 @@
                 <x-nx-callout variant="info" icon="heroicon-o-information-circle">Wenn das Gesamtsystem nichts beitragen muss – gehört der Punkt überhaupt in den LA?</x-nx-callout>
             @endif
 
-            <div>
-                <div class="mb-2 text-xs font-medium text-[color:var(--nx-muted)]">Nach dem LA – was trifft zu?</div>
+            {{-- Nach dem LA: Handlungsfähigkeit --}}
+            <div class="space-y-3 rounded-[8px] border border-[color:var(--nx-line)] p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <div class="text-sm font-semibold text-[color:var(--nx-text)]">Nach dem LA – was trifft zu?</div>
+                        <div class="text-xs text-[color:var(--nx-muted)]">Maßstab: Ist die Organisation danach handlungsfähiger als vorher?</div>
+                    </div>
+                    @php $verdictNow = \Platform\ManagementBook\Enums\AgendaOutcomeCheck::verdict(count($checked)); @endphp
+                    <x-nx-badge :variant="count($checked) ? $verdictNow['variant'] : 'neutral'">
+                        {{ count($checked) }} von 6{{ count($checked) ? ' · ' . $verdictNow['label'] : ' · noch nicht bewertet' }}
+                    </x-nx-badge>
+                </div>
                 <div class="grid grid-cols-1 gap-1 sm:grid-cols-2">
                     @foreach($checks as $check)
                         @php $on = in_array($check->value, $checked, true); @endphp
                         <button type="button" @if($canEdit) wire:click="toggleCheck({{ $item->id }}, '{{ $check->value }}')" @endif
-                                class="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-sm transition-colors {{ $canEdit ? 'hover:bg-[color:var(--nx-hover)]' : 'cursor-default' }} {{ $on ? 'text-[color:var(--nx-text)]' : 'text-[color:var(--nx-muted)]' }}">
-                            @svg($on ? 'heroicon-s-check-circle' : 'heroicon-o-stop', 'w-4 h-4 shrink-0 ' . ($on ? 'text-[color:var(--nx-success)]' : 'text-[color:var(--nx-faint)]'))
+                                class="flex items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-left text-sm transition-colors {{ $canEdit ? 'hover:bg-[color:var(--nx-hover)]' : 'cursor-default' }} {{ $on ? 'text-[color:var(--nx-text)]' : 'text-[color:var(--nx-muted)]' }}">
+                            @svg($on ? 'heroicon-s-check-circle' : 'heroicon-o-stop', 'w-5 h-5 shrink-0 ' . ($on ? 'text-[color:var(--nx-success)]' : 'text-[color:var(--nx-faint)]'))
                             {{ $check->label() }}
                         </button>
                     @endforeach

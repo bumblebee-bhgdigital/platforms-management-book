@@ -54,14 +54,17 @@ class UiStrategyTest extends TestCase
             ->assertSee('Eventgeschäft')->assertSee('Digitalisierung')
             ->assertSee('Ausgebuchte Locations')->assertSee('Personalengpass')->assertSee('Zweite Küche')
             ->assertSee('überfällig')               // Eventteam aufgebaut: Q4 Vorjahr, in Arbeit
-            ->assertSee('Woran erkennen wir');       // Default-Leitfrage
+            ->assertSee('Woran erkennen wir')        // Default-Leitfrage
+            ->assertSee('Wenige Themen, die wirklich tragen');  // Einstieg Fokusräume
 
         $this->get($url . '&view=map')->assertOk()
             ->assertSee('Fortschritt')->assertSee('Ohne Termin')->assertSee('Nächster Waypoint')
-            ->assertSee('Plattform live')->assertSee((string) now()->year);
+            ->assertSee('Plattform live')->assertSee((string) now()->year)
+            ->assertSee('Der Weg über die Zeit')->assertSee('So liest man die Map');
 
         $this->get($url . '&view=regnose')->assertOk()
-            ->assertSee('Regnose 2030')->assertSee('Zieljahr 2030')->assertSee('Eventgeschäft');
+            ->assertSee('Regnose 2030')->assertSee('Zieljahr 2030')->assertSee('Eventgeschäft')
+            ->assertSee('Aus der Zukunft zurückdenken');
     }
 
     public function test_empty_state(): void
@@ -69,7 +72,9 @@ class UiStrategyTest extends TestCase
         $d = $this->seedBook();
         ManagementBookFocusArea::where('management_book_id', $d['book']->id)->get()->each->delete();
         $this->get(route('management-book.books.show', $d['book']) . '?tab=strategy')
-            ->assertOk()->assertSee('Noch keine Fokusräume');
+            ->assertOk()->assertSee('Noch keine Fokusräume')
+            ->assertSee('Eventgeschäft ausbauen')->assertSee('Unsere Locations sind an 200 Tagen ausgebucht')
+            ->assertSee('Zweite Küche in Betrieb (Q2/2027)');
     }
 
     public function test_focus_area_crud_and_order(): void

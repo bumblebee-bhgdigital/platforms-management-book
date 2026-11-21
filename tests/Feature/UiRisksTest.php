@@ -30,7 +30,13 @@ class UiRisksTest extends TestCase
             ->assertSee('Risikoregister')
             ->assertSee('Wahl bei mehreren Optionen')
             ->assertSee('Maßnahmen umsetzen, überwachen')
-            ->assertDontSee('Erledigt'); // geschlossenes Risiko standardmäßig ausgeblendet
+            ->assertDontSee('Erledigt') // geschlossenes Risiko standardmäßig ausgeblendet
+            // Einstieg, Ampel-Erklärung, Stufe der Risikobereitschaft mit Bedeutung für Entscheidungen
+            ->assertSee('Was kann uns auf dem Weg treffen?')
+            ->assertSee('gehören auf die Agenda des Lenkungsausschusses')
+            ->assertSee('Ampel nach Priorität')
+            ->assertSee('Für Entscheidungen heißt das')
+            ->assertSee('h-14 min-w-14', false); // große Heatmap
     }
 
     public function test_empty_state_renders(): void
@@ -39,7 +45,9 @@ class UiRisksTest extends TestCase
         ManagementBookRisk::where('management_book_id', $d['book']->id)->forceDelete();
         $this->get(route('management-book.books.show', $d['book']) . '?tab=risks')
             ->assertOk()
-            ->assertSee('Noch keine Risiken erfasst');
+            ->assertSee('Noch keine Risiken erfasst')
+            ->assertSee('E 4 × A 3 = 12')            // Beispielzeile aus der Vorlage
+            ->assertSee('Erstes Risiko erfassen');
     }
 
     /** Livewire::test() liefert in der Verifikations-App keinen Snapshot; daher Komponente direkt bedienen. */
@@ -105,6 +113,10 @@ class UiRisksTest extends TestCase
         $html = $c->render()->render();
         $this->assertStringContainsString('Risiko bearbeiten', $html);
         $this->assertStringContainsString('Sofortiges Handeln erforderlich', $html);
+        // Knoten-Auswahl: Vorschläge nur im aufklappbaren Bereich (Alpine), max. 8, nicht dauerhaft offen
+        $this->assertStringContainsString('Bereich suchen', $html);
+        $this->assertStringContainsString('x-show="open"', $html);
+        $this->assertLessThanOrEqual(8, $c->render()->getData()['entityOptions']->count());
 
         // Bearbeiten: Score neu
         $c->form['impact'] = '2';

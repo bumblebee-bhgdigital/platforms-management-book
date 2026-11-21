@@ -32,10 +32,29 @@ class Committees extends Component
         'chair_user_id' => null,
     ];
 
-    public function openCreate(): void
+    /** Vorschläge als Startpunkt (nur Vorbelegung des Formulars, keine Automatik). */
+    public const PRESETS = [
+        'strategy_meeting' => [
+            'name' => 'Strategiemeeting GF',
+            'type' => 'strategy_meeting',
+            'cadence' => 'halbjährlich',
+            'description' => 'Die Geschäftsführung klärt die Grundsatzfragen: Entwicklungen, Chancen, Risiken, Geschäftsfelder, wirtschaftliche Ziele und benötigte Fähigkeiten.',
+        ],
+        'steering_committee' => [
+            'name' => 'Lenkungsausschuss',
+            'type' => 'steering_committee',
+            'cadence' => 'monatlich',
+            'description' => 'Regelschleife für das, was zwischen den Einheiten klemmt: Zielkonflikte, geteilte Ressourcen, Prioritäten über Bereichsgrenzen. Lokal vor übergreifend.',
+        ],
+    ];
+
+    public function openCreate(?string $preset = null): void
     {
         $this->authorizeEdit();
         $this->reset('form');
+        if ($preset && isset(self::PRESETS[$preset])) {
+            $this->form = array_merge($this->form, self::PRESETS[$preset]);
+        }
         $this->resetValidation();
         $this->showCreate = true;
     }

@@ -1,6 +1,6 @@
 {{--
-    Gremium-Seite (nx): Kopf mit Typ/Status/Rhythmus/Vorsitz, Mitglieder, Sitzungen (anstehend/vergangen)
-    und offene Beschlüsse über alle Sitzungen.
+    Gremium-Seite (nx): breiter Kopf, Hauptspalte (Kennzahlen, Sitzungen, offene Beschlüsse, Mitglieder – je mit Erklärung)
+    und Orientierungsspalte (Fall-Sortierer beim Lenkungsausschuss + Guide).
 --}}
 <x-ui-page>
     <x-slot name="navbar">
@@ -33,152 +33,215 @@
         </x-ui-page-actionbar>
     </x-slot>
 
-    <x-ui-page-container width="contained" spacing="space-y-6">
-        {{-- Kopf --}}
-        <div class="space-y-2">
-            <div class="flex flex-wrap items-center gap-2">
-                <h1 class="m-0 text-2xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $committee->name }}</h1>
-                <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Book\Committees::typeBadge($committee->type)">{{ $committee->type?->label() }}</x-nx-badge>
-                <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Book\Committees::statusBadge($committee->status)" dot>{{ $committee->status?->label() }}</x-nx-badge>
-            </div>
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-[color:var(--nx-muted)]">
-                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') Vorsitz {{ $committee->chair?->name ?? '–' }}</span>
-                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->cadence ?: 'kein Rhythmus hinterlegt' }}</span>
-                @if($committee->responsibleAgent)
-                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->responsibleAgent->name }}</span>
+    <x-ui-page-container width="full" spacing="space-y-8">
+        @php
+            $isSteering = $committee->type?->value === 'steering_committee';
+            $overdue = $openDecisions->filter(fn ($d) => $d->due_date && $d->due_date->isPast())->count();
+            $capTotal = collect($capability);
+            $capPct = $capTotal->sum('max') > 0 ? (int) round($capTotal->sum('done') / $capTotal->sum('max') * 100) : null;
+            $roleHelp = [
+                'chair' => 'leitet die Sitzung und achtet auf die Haltung: Hilfe statt Macht.',
+                'secretary' => 'hält Protokoll und Beschlüsse fest.',
+                'member' => 'bringt Themen aus dem eigenen Verantwortungsbereich ein.',
+                'guest' => 'wird zu einzelnen Punkten hinzugezogen.',
+            ];
+        @endphp
+        <div class="mx-auto w-full max-w-[1440px] space-y-8">
+            {{-- Kopf --}}
+            <div class="space-y-3">
+                <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Gremium · {{ $book?->title }}</div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <h1 class="m-0 text-3xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $committee->name }}</h1>
+                    <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Book\Committees::typeBadge($committee->type)">{{ $committee->type?->label() }}</x-nx-badge>
+                    <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Book\Committees::statusBadge($committee->status)" dot>{{ $committee->status?->label() }}</x-nx-badge>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-[color:var(--nx-muted)]">
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') Vorsitz {{ $committee->chair?->name ?? 'offen' }}</span>
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->cadence ?: 'kein Rhythmus hinterlegt' }}</span>
+                    @if($committee->responsibleAgent)
+                        <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $committee->responsibleAgent->name }}</span>
+                    @endif
+                </div>
+                @if($committee->description)
+                    <p class="m-0 max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-[color:var(--nx-text)]">{{ $committee->description }}</p>
+                @elseif($canEdit)
+                    <button type="button" wire:click="openEdit" class="text-sm text-[color:var(--nx-muted)] underline hover:text-[color:var(--nx-text)]">
+                        Zweck beschreiben: Wofür ist dieses Gremium da – und was gehört nicht hierher?
+                    </button>
                 @endif
             </div>
-            @if($committee->description)
-                <p class="m-0 max-w-3xl whitespace-pre-line text-sm text-[color:var(--nx-muted)]">{{ $committee->description }}</p>
-            @endif
-        </div>
 
-        @if($committee->type?->value === 'steering_committee')
-            <x-nx-callout variant="info" icon="heroicon-o-arrows-right-left" title="Lokal vor übergreifend">
-                Was innerhalb eines Verantwortungsbereichs gelöst werden kann, wird dort gelöst. Der Lenkungsausschuss beginnt dort,
-                wo lokale Handlungsfähigkeit nicht mehr ausreicht – er übernimmt keine Verantwortung, er macht sie möglich.
-                Eskalieren heißt hier: professionell führen.
-            </x-nx-callout>
-        @endif
+            <div class="grid gap-10 xl:grid-cols-[minmax(0,1fr)_300px]">
+                {{-- Hauptspalte --}}
+                <div class="min-w-0 space-y-10">
+                    <x-nx-stat-grid :cols="4">
+                        <x-nx-stat label="Anstehende Sitzungen" :value="$upcoming->count()" icon="heroicon-o-calendar-days"
+                                   :hint="$upcoming->first()?->scheduled_at ? 'nächste ' . $upcoming->first()->scheduled_at->format('d.m.Y H:i') : 'keine geplant'" />
+                        <x-nx-stat label="Gehaltene Sitzungen" :value="$past->where('status.value', 'held')->count()" icon="heroicon-o-check-circle" />
+                        <x-nx-stat label="Offene Beschlüsse" :value="$openDecisions->count()" icon="heroicon-o-clipboard-document-check"
+                                   :hint="$overdue ? $overdue . ' überfällig' : 'keine überfällig'" :accent="$overdue ? 'var(--nx-danger)' : null" />
+                        <x-nx-stat label="Handlungsfähigkeit" :value="$capPct !== null ? $capPct . ' %' : '–'" icon="heroicon-o-bolt"
+                                   :hint="$capPct !== null ? 'erfüllte Kriterien nach dem LA' : 'noch keine Kriterien bewertet'"
+                                   :accent="$capPct === null ? null : ($capPct >= 80 ? 'var(--nx-success)' : ($capPct >= 50 ? 'var(--nx-warning)' : 'var(--nx-danger)'))" />
+                    </x-nx-stat-grid>
 
-        <x-nx-stat-grid :cols="4">
-            <x-nx-stat label="Anstehende Sitzungen" :value="$upcoming->count()" icon="heroicon-o-calendar-days"
-                       :hint="$upcoming->first()?->scheduled_at ? 'nächste ' . $upcoming->first()->scheduled_at->format('d.m.Y H:i') : 'keine geplant'" />
-            <x-nx-stat label="Gehaltene Sitzungen" :value="$past->where('status.value', 'held')->count()" icon="heroicon-o-check-circle" />
-            <x-nx-stat label="Offene Beschlüsse" :value="$openDecisions->count()" icon="heroicon-o-clipboard-document-check"
-                       :hint="($overdue = $openDecisions->filter(fn ($d) => $d->due_date && $d->due_date->isPast())->count()) ? $overdue . ' überfällig' : 'keine überfällig'"
-                       :accent="$overdue ? 'var(--nx-danger)' : null" />
-            @php
-                $capTotal = collect($capability);
-                $capPct = $capTotal->sum('max') > 0 ? (int) round($capTotal->sum('done') / $capTotal->sum('max') * 100) : null;
-            @endphp
-            <x-nx-stat label="Handlungsfähigkeit" :value="$capPct !== null ? $capPct . ' %' : '–'" icon="heroicon-o-bolt"
-                       hint="erfüllte Kriterien nach dem LA" :accent="$capPct === null ? null : ($capPct >= 80 ? 'var(--nx-success)' : ($capPct >= 50 ? 'var(--nx-warning)' : 'var(--nx-danger)'))" />
-        </x-nx-stat-grid>
-
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {{-- Sitzungen --}}
-            <div class="space-y-6 lg:col-span-2">
-                <x-nx-section icon="heroicon-o-calendar-days" title="Anstehende Sitzungen" :hint="$upcoming->count()">
-                    @if($canEdit)
-                        <x-slot name="action">
-                            <x-nx-button size="sm" wire:click="openMeeting">@svg('heroicon-o-plus', 'w-4 h-4') Sitzung</x-nx-button>
-                        </x-slot>
-                    @endif
-                    <x-nx-card flush>
-                        @forelse($upcoming as $m)
-                            <div class="border-b border-[color:var(--nx-line)] last:border-b-0" wire:key="up-{{ $m->id }}">
-                                <x-nx-list-item icon="heroicon-o-calendar" :href="route('management-book.meetings.show', $m)" :title="$m->title"
-                                                :subtitle="collect([$m->scheduled_at?->translatedFormat('D, d.m.Y H:i'), $m->location, $m->agenda_items_count . ' Agenda-Punkte'])->filter()->implode(' · ')">
-                                    <x-slot name="trailing">
-                                        <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Committee\Show::meetingBadge($m->status)" dot>{{ $m->status?->label() }}</x-nx-badge>
-                                    </x-slot>
-                                </x-nx-list-item>
+                    {{-- Sitzungen --}}
+                    <section class="space-y-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="max-w-2xl space-y-1">
+                                <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Sitzungen</h2>
+                                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                    Plane den Rhythmus, nicht nur den nächsten Termin. Ein Gremium wirkt, wenn es verlässlich tagt – dann können Bereiche Themen rechtzeitig einbringen, statt sie zu horten.
+                                </p>
                             </div>
-                        @empty
-                            <x-nx-empty icon="heroicon-o-calendar">Keine Sitzung geplant.</x-nx-empty>
-                        @endforelse
-                    </x-nx-card>
-                </x-nx-section>
+                            @if($canEdit)
+                                <x-nx-button size="sm" wire:click="openMeeting">@svg('heroicon-o-plus', 'w-4 h-4') Sitzung</x-nx-button>
+                            @endif
+                        </div>
 
-                <x-nx-section icon="heroicon-o-clock" title="Vergangene Sitzungen" :hint="$past->count()"
-                              description="Maßstab je Sitzung: Ist die Organisation danach handlungsfähiger als vorher?">
-                    <x-nx-card flush>
-                        @forelse($past as $m)
-                            @php $cap = $capability[$m->id] ?? null; @endphp
-                            <div class="border-b border-[color:var(--nx-line)] last:border-b-0" wire:key="past-{{ $m->id }}">
-                                <x-nx-list-item icon="heroicon-o-document-text" :href="route('management-book.meetings.show', $m)" :title="$m->title"
-                                                :subtitle="collect([$m->scheduled_at?->format('d.m.Y'), $m->agenda_items_count . ' Punkte', $m->decisions_count . ' Beschlüsse'])->filter()->implode(' · ')">
-                                    <x-slot name="trailing">
-                                        <div class="flex items-center gap-2">
-                                            @if($cap)
-                                                @php $v = \Platform\ManagementBook\Enums\AgendaOutcomeCheck::verdict((int) round($cap['pct'] / 100 * 6)); @endphp
-                                                <x-nx-badge :variant="$v['variant']" title="{{ $cap['done'] }} von {{ $cap['max'] }} Kriterien">{{ $cap['pct'] }} % handlungsfähig</x-nx-badge>
+                        <div class="space-y-2">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Anstehend · {{ $upcoming->count() }}</div>
+                            <x-nx-card flush>
+                                @forelse($upcoming as $m)
+                                    <div class="border-b border-[color:var(--nx-line)] last:border-b-0" wire:key="up-{{ $m->id }}">
+                                        <x-nx-list-item icon="heroicon-o-calendar" :href="route('management-book.meetings.show', $m)" :title="$m->title"
+                                                        :subtitle="collect([$m->scheduled_at?->translatedFormat('D, d.m.Y H:i'), $m->location, $m->agenda_items_count . ' Agenda-Punkte'])->filter()->implode(' · ')">
+                                            <x-slot name="trailing">
+                                                <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Committee\Show::meetingBadge($m->status)" dot>{{ $m->status?->label() }}</x-nx-badge>
+                                            </x-slot>
+                                        </x-nx-list-item>
+                                    </div>
+                                @empty
+                                    <div class="space-y-3 px-5 py-6">
+                                        <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                            Keine Sitzung geplant. Lege die nächsten Termine gleich für ein paar Monate an{{ $committee->cadence ? ' – Rhythmus: ' . $committee->cadence : '' }}.
+                                        </p>
+                                        @if($canEdit)
+                                            <x-nx-button size="sm" wire:click="openMeeting">Nächste Sitzung planen</x-nx-button>
+                                        @endif
+                                    </div>
+                                @endforelse
+                            </x-nx-card>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex items-baseline justify-between gap-3">
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">Vergangen · {{ $past->count() }}</div>
+                                <div class="text-xs text-[color:var(--nx-faint)]">Maßstab: Ist die Organisation danach handlungsfähiger als vorher?</div>
+                            </div>
+                            <x-nx-card flush>
+                                @forelse($past as $m)
+                                    @php $cap = $capability[$m->id] ?? null; @endphp
+                                    <div class="border-b border-[color:var(--nx-line)] last:border-b-0" wire:key="past-{{ $m->id }}">
+                                        <x-nx-list-item icon="heroicon-o-document-text" :href="route('management-book.meetings.show', $m)" :title="$m->title"
+                                                        :subtitle="collect([$m->scheduled_at?->format('d.m.Y'), $m->agenda_items_count . ' Punkte', $m->decisions_count . ' Beschlüsse'])->filter()->implode(' · ')">
+                                            <x-slot name="trailing">
+                                                <div class="flex items-center gap-2">
+                                                    @if($cap)
+                                                        @php $v = \Platform\ManagementBook\Enums\AgendaOutcomeCheck::verdict((int) round($cap['pct'] / 100 * 6)); @endphp
+                                                        <x-nx-badge :variant="$v['variant']" title="{{ $cap['done'] }} von {{ $cap['max'] }} Kriterien">{{ $cap['pct'] }} % handlungsfähig</x-nx-badge>
+                                                    @endif
+                                                    <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Committee\Show::meetingBadge($m->status)" dot>{{ $m->status?->label() }}</x-nx-badge>
+                                                </div>
+                                            </x-slot>
+                                        </x-nx-list-item>
+                                    </div>
+                                @empty
+                                    <p class="m-0 px-5 py-6 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                        Noch keine vergangenen Sitzungen. Nach jeder Sitzung zeigt sich hier, wie handlungsfähig die Organisation danach war.
+                                    </p>
+                                @endforelse
+                            </x-nx-card>
+                        </div>
+                    </section>
+
+                    {{-- Offene Beschlüsse --}}
+                    <section class="space-y-4">
+                        <div class="max-w-2xl space-y-1">
+                            <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Offene Beschlüsse <span class="font-normal text-[color:var(--nx-faint)]">{{ $openDecisions->count() }}</span></h2>
+                            <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                Ein Beschluss ist erst wirksam, wenn er umgesetzt ist. Verfolgt ihn bis dahin – und verwerft ihn bewusst, wenn er sich überholt hat.
+                            </p>
+                        </div>
+                        <x-nx-card flush>
+                            @forelse($openDecisions as $d)
+                                @php $overdueD = $d->due_date && $d->due_date->isPast(); @endphp
+                                <div class="flex flex-col gap-3 border-b border-[color:var(--nx-line)] px-5 py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between" wire:key="dec-{{ $d->id }}">
+                                    <div class="min-w-0 space-y-1">
+                                        <div class="text-sm leading-relaxed text-[color:var(--nx-text)]">{{ $d->text }}</div>
+                                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--nx-muted)]">
+                                            <a href="{{ route('management-book.meetings.show', $d->meeting_id) }}" wire:navigate class="hover:underline">{{ $d->meeting?->title }}</a>
+                                            @if($d->ownerUser || $d->ownerAgent)<span>{{ $d->ownerUser?->name ?? $d->ownerAgent?->name }}</span>@endif
+                                            @if($d->due_date)
+                                                <span class="{{ $overdueD ? 'font-medium text-[color:var(--nx-danger)]' : '' }}">fällig {{ $d->due_date->format('d.m.Y') }}{{ $overdueD ? ' · überfällig' : '' }}</span>
                                             @endif
-                                            <x-nx-badge :variant="\Platform\ManagementBook\Livewire\Committee\Show::meetingBadge($m->status)" dot>{{ $m->status?->label() }}</x-nx-badge>
                                         </div>
-                                    </x-slot>
-                                </x-nx-list-item>
-                            </div>
-                        @empty
-                            <x-nx-empty icon="heroicon-o-clock">Noch keine vergangenen Sitzungen.</x-nx-empty>
-                        @endforelse
-                    </x-nx-card>
-                </x-nx-section>
-            </div>
-
-            {{-- Seitenspalte --}}
-            <div class="space-y-6">
-                <x-nx-section icon="heroicon-o-users" title="Mitglieder" :hint="$committee->members->count()">
-                    @if($canEdit)
-                        <x-slot name="action">
-                            <x-nx-button variant="ghost" size="sm" icon wire:click="openMember" title="Mitglied hinzufügen">@svg('heroicon-o-plus', 'w-4 h-4')</x-nx-button>
-                        </x-slot>
-                    @endif
-                    <x-nx-card flush>
-                        @forelse($committee->members->sortBy(fn ($m) => array_search($m->role?->value, ['chair', 'secretary', 'member', 'guest'])) as $member)
-                            <div class="group flex items-center gap-3 border-b border-[color:var(--nx-line)] px-4 py-2.5 last:border-b-0" wire:key="member-{{ $member->id }}">
-                                @svg($member->agent_id ? 'heroicon-o-cpu-chip' : 'heroicon-o-user', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)]')
-                                <span class="min-w-0 flex-1 truncate text-sm">{{ $member->user?->name ?? $member->agent?->name ?? '–' }}</span>
-                                <x-nx-badge :variant="$member->role?->value === 'chair' ? 'accent' : 'neutral'">{{ $member->role?->label() }}</x-nx-badge>
-                                @if($canEdit)
-                                    <button type="button" wire:click="removeMember({{ $member->id }})" wire:confirm="Mitglied entfernen?"
-                                            class="opacity-0 transition-opacity group-hover:opacity-100 text-[color:var(--nx-muted)] hover:text-[color:var(--nx-danger)]" title="Entfernen">
-                                        @svg('heroicon-o-x-mark', 'w-4 h-4')
-                                    </button>
-                                @endif
-                            </div>
-                        @empty
-                            <x-nx-empty icon="heroicon-o-users">Noch keine Mitglieder.</x-nx-empty>
-                        @endforelse
-                    </x-nx-card>
-                </x-nx-section>
-
-                <x-nx-section icon="heroicon-o-clipboard-document-check" title="Offene Beschlüsse" :hint="$openDecisions->count()">
-                    <x-nx-card flush>
-                        @forelse($openDecisions as $d)
-                            @php $overdueD = $d->due_date && $d->due_date->isPast(); @endphp
-                            <div class="border-b border-[color:var(--nx-line)] px-4 py-3 last:border-b-0" wire:key="dec-{{ $d->id }}">
-                                <div class="text-sm text-[color:var(--nx-text)]">{{ $d->text }}</div>
-                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--nx-muted)]">
-                                    <a href="{{ route('management-book.meetings.show', $d->meeting_id) }}" wire:navigate class="hover:underline">{{ $d->meeting?->title }}</a>
-                                    @if($d->ownerUser || $d->ownerAgent)<span>{{ $d->ownerUser?->name ?? $d->ownerAgent?->name }}</span>@endif
-                                    @if($d->due_date)
-                                        <span class="{{ $overdueD ? 'font-medium text-[color:var(--nx-danger)]' : '' }}">fällig {{ $d->due_date->format('d.m.Y') }}</span>
+                                    </div>
+                                    @if($canEdit)
+                                        <div class="flex shrink-0 gap-2">
+                                            <x-nx-button size="sm" wire:click="setDecisionStatus({{ $d->id }}, 'implemented')">@svg('heroicon-o-check', 'w-4 h-4') Umgesetzt</x-nx-button>
+                                            <x-nx-button variant="ghost" size="sm" wire:click="setDecisionStatus({{ $d->id }}, 'discarded')">Verwerfen</x-nx-button>
+                                        </div>
                                     @endif
                                 </div>
-                                @if($canEdit)
-                                    <div class="mt-2 flex gap-2">
-                                        <x-nx-button size="sm" wire:click="setDecisionStatus({{ $d->id }}, 'implemented')">@svg('heroicon-o-check', 'w-4 h-4') Umgesetzt</x-nx-button>
-                                        <x-nx-button variant="ghost" size="sm" wire:click="setDecisionStatus({{ $d->id }}, 'discarded')">Verwerfen</x-nx-button>
-                                    </div>
-                                @endif
+                            @empty
+                                <p class="m-0 px-5 py-6 text-sm leading-relaxed text-[color:var(--nx-muted)]">Keine offenen Beschlüsse – alles Beschlossene ist umgesetzt oder bewusst verworfen.</p>
+                            @endforelse
+                        </x-nx-card>
+                    </section>
+
+                    {{-- Mitglieder --}}
+                    <section class="space-y-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="max-w-2xl space-y-1">
+                                <h2 class="m-0 text-base font-semibold text-[color:var(--nx-text)]">Mitglieder <span class="font-normal text-[color:var(--nx-faint)]">{{ $committee->members->count() }}</span></h2>
+                                <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                    Wer am Tisch sitzt, bringt die Perspektive seines Bereichs ein. Der Vorsitz leitet und achtet auf die Haltung, die Protokollführung hält Beschlüsse fest. Agenten können mitarbeiten wie Menschen.
+                                </p>
                             </div>
-                        @empty
-                            <x-nx-empty icon="heroicon-o-clipboard-document-check">Keine offenen Beschlüsse.</x-nx-empty>
-                        @endforelse
-                    </x-nx-card>
-                </x-nx-section>
+                            @if($canEdit)
+                                <x-nx-button variant="secondary" size="sm" wire:click="openMember">@svg('heroicon-o-plus', 'w-4 h-4') Mitglied</x-nx-button>
+                            @endif
+                        </div>
+                        <x-nx-card flush>
+                            @forelse($committee->members->sortBy(fn ($m) => array_search($m->role?->value, ['chair', 'secretary', 'member', 'guest'])) as $member)
+                                <div class="group flex items-center gap-3 border-b border-[color:var(--nx-line)] px-5 py-3 last:border-b-0" wire:key="member-{{ $member->id }}">
+                                    @svg($member->agent_id ? 'heroicon-o-cpu-chip' : 'heroicon-o-user', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)]')
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-sm text-[color:var(--nx-text)]">{{ $member->user?->name ?? $member->agent?->name ?? '–' }}</span>
+                                        @if(isset($roleHelp[$member->role?->value]))
+                                            <span class="block truncate text-xs text-[color:var(--nx-faint)]">{{ $member->role?->label() }} {{ $roleHelp[$member->role->value] }}</span>
+                                        @endif
+                                    </span>
+                                    <x-nx-badge :variant="$member->role?->value === 'chair' ? 'accent' : 'neutral'">{{ $member->role?->label() }}</x-nx-badge>
+                                    @if($canEdit)
+                                        <button type="button" wire:click="removeMember({{ $member->id }})" wire:confirm="Mitglied entfernen?"
+                                                class="opacity-0 transition-opacity group-hover:opacity-100 text-[color:var(--nx-muted)] hover:text-[color:var(--nx-danger)]" title="Entfernen">
+                                            @svg('heroicon-o-x-mark', 'w-4 h-4')
+                                        </button>
+                                    @endif
+                                </div>
+                            @empty
+                                <p class="m-0 px-5 py-6 text-sm leading-relaxed text-[color:var(--nx-muted)]">Noch keine Mitglieder. Beginne mit Vorsitz und Protokollführung, dann die Verantwortlichen der Bereiche.</p>
+                            @endforelse
+                        </x-nx-card>
+                    </section>
+                </div>
+
+                {{-- Orientierungsspalte --}}
+                <div class="space-y-6 self-start xl:sticky xl:top-6">
+                    @if($isSteering)
+                        <div class="space-y-2 rounded-[8px] border border-[color:var(--nx-line)] p-4">
+                            <div class="flex items-center gap-2 text-sm font-semibold text-[color:var(--nx-text)]">
+                                @svg('heroicon-o-arrows-right-left', 'w-4 h-4 text-[color:var(--nx-info)]') Gehört das hier hin?
+                            </div>
+                            <p class="m-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">
+                                Eskalieren, wenn andere Einheiten, gemeinsame Ressourcen oder strategische Prioritäten betroffen sind – sonst lokal lösen.
+                            </p>
+                        </div>
+                    @endif
+                    @include('management-book::livewire.partials.guide-rail', ['area' => $isSteering ? 'committee' : 'committees'])
+                </div>
             </div>
         </div>
     </x-ui-page-container>

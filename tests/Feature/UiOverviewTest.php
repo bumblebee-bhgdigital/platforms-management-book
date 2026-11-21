@@ -75,7 +75,22 @@ class UiOverviewTest extends TestCase
             ->assertSee('LA Dezember')
             ->assertSee('Zusatzschicht im Dezember')
             ->assertSee('Eventteam aufgebaut')
-            ->assertSee('Moderates Risiko');
+            ->assertSee('Moderates Risiko')
+            // Titelblatt
+            ->assertSee('Unterwegs nach 2030')
+            ->assertSee('Vision – wohin wir wollen')
+            ->assertSee('2030 sind wir die erste Adresse für Events im Rheinland.')
+            // Regelkreis als Kreis
+            ->assertSee('viewBox="-70 20 740 560"', false)
+            ->assertSee('Nach Station 8 beginnt der Kreis von vorn')
+            ->assertSee('Lage in Zahlen');
+
+        // Book ohne Mission/Vision: einladendes Titelblatt
+        $empty = app(\Platform\ManagementBook\Services\ManagementBookService::class)->create($d['user'], $d['team'], ['title' => 'Leeres Book']);
+        $this->get(route('management-book.books.show', $empty))
+            ->assertOk()
+            ->assertSee('Dieses Book wartet auf seine Richtung.')
+            ->assertSee('Mission und Vision schreiben');
     }
 
     public function test_station_selection(): void
@@ -97,7 +112,9 @@ class UiOverviewTest extends TestCase
             ->assertSee('Woher kommen wir?')
             ->assertSee('Nach welchen Grundsätzen führen und entscheiden wir?')
             ->assertSee('Hilfe statt Macht')
-            ->assertSee('3 / 9');
+            ->assertSee('3 / 9')
+            ->assertSee('Markt, Kunden, Zahlen, Stärken und offene Flanken')
+            ->assertSee('Kapitel schreiben');
 
         $c = new \Platform\ManagementBook\Livewire\Book\Chapters();
         $c->mount($d['book']->id);

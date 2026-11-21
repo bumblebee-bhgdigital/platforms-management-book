@@ -1,6 +1,7 @@
 {{--
     Detailseite Management Book (nx-Design-System): Kopf mit Eckdaten und Knoten, darunter Bereiche als Tabs.
-    Jeder Bereich ist eine eigene Livewire-Komponente unter Livewire/Book (management-book.book.*).
+    Breites Layout: links der Bereich (eigene Livewire-Komponente unter Livewire/Book, management-book.book.*),
+    rechts die Orientierungsspalte (Erste Schritte + Guide je Bereich mit Academy-Verweisen).
 --}}
 
 <x-ui-page>
@@ -32,7 +33,8 @@
         </x-ui-page-actionbar>
     </x-slot>
 
-    <x-ui-page-container width="contained" spacing="space-y-6">
+    <x-ui-page-container width="full" spacing="space-y-8">
+      <div class="mx-auto w-full max-w-[1440px] space-y-8">
         @if(session('error'))
             <x-nx-callout variant="danger" icon="heroicon-o-exclamation-triangle" title="Fehler">{{ session('error') }}</x-nx-callout>
         @endif
@@ -45,27 +47,33 @@
             </x-nx-callout>
         @endif
 
-        {{-- Kopf: Titel, Status, Knoten und Eckdaten --}}
-        <div class="space-y-3">
-            <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0">
-                    <div class="flex items-center gap-2">
-                        <h1 class="m-0 truncate text-2xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $book->title }}</h1>
-                        <x-nx-badge :variant="$book->status->badgeVariant()" dot>{{ $book->status->label() }}</x-nx-badge>
-                    </div>
-                    @if($book->description)
-                        <p class="mt-1 mb-0 max-w-3xl text-sm text-[color:var(--nx-muted)] whitespace-pre-line">{{ $book->description }}</p>
+        {{-- Kopf: wofür das Book steht, für wen es gilt, in welchem Takt es überprüft wird --}}
+        <header class="space-y-4">
+            <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--nx-faint)]">
+                    <span>Management Book</span>
+                    @if($nodes->isNotEmpty())
+                        <span aria-hidden="true">·</span>
+                        <span>{{ $nodes->pluck('name')->implode(', ') }}</span>
                     @endif
                 </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <h1 class="m-0 text-3xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $book->title }}</h1>
+                    <x-nx-badge :variant="$book->status->badgeVariant()" dot>{{ $book->status->label() }}</x-nx-badge>
+                </div>
+                @if($book->description)
+                    <p class="m-0 max-w-3xl text-[15px] leading-relaxed text-[color:var(--nx-muted)] whitespace-pre-line">{{ $book->description }}</p>
+                @endif
             </div>
 
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[color:var(--nx-muted)]">
-                <span class="inline-flex items-center gap-1.5">
+            {{-- Eckdaten als ruhige Chips; Leeres wird nicht angezeigt, sondern angeboten --}}
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--nx-line)] px-3 py-1 text-[color:var(--nx-muted)]">
                     @svg('heroicon-o-building-office', 'w-4 h-4 text-[color:var(--nx-faint)]')
                     @forelse($nodes as $node)
                         <a href="{{ route('organization.entities.show', $node) }}" wire:navigate class="text-[color:var(--nx-text)] hover:underline">{{ $node->name }}</a>@if(! $loop->last),@endif
                     @empty
-                        <span>Nicht verknüpft</span>
+                        <span>Für keine Einheit verknüpft</span>
                     @endforelse
                     @can('update', $book)
                         <button type="button" wire:click="startLinking({{ $book->id }})" class="ml-1 text-xs underline hover:text-[color:var(--nx-text)]">
@@ -77,38 +85,47 @@
                     @endcan
                 </span>
                 @if($book->horizon_year)
-                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-flag', 'w-4 h-4 text-[color:var(--nx-faint)]') Horizont {{ $book->horizon_year }}</span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--nx-line)] px-3 py-1 text-[color:var(--nx-muted)]">
+                        @svg('heroicon-o-flag', 'w-4 h-4 text-[color:var(--nx-faint)]') Unterwegs nach <span class="font-medium text-[color:var(--nx-text)]">{{ $book->horizon_year }}</span>
+                    </span>
                 @endif
                 @if($book->valid_from || $book->valid_until)
-                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-calendar-days', 'w-4 h-4 text-[color:var(--nx-faint)]')
-                        {{ $book->valid_from ? 'ab ' . $book->valid_from->format('d.m.Y') : '' }}{{ $book->valid_from && $book->valid_until ? ' ' : '' }}{{ $book->valid_until ? 'bis ' . $book->valid_until->format('d.m.Y') : '' }}
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--nx-line)] px-3 py-1 text-[color:var(--nx-muted)]">
+                        @svg('heroicon-o-calendar-days', 'w-4 h-4 text-[color:var(--nx-faint)]')
+                        {{ $book->valid_from ? 'gültig ab ' . $book->valid_from->format('d.m.Y') : '' }}{{ $book->valid_from && $book->valid_until ? ' ' : '' }}{{ $book->valid_until ? 'bis ' . $book->valid_until->format('d.m.Y') : '' }}
                     </span>
                 @endif
                 @if($book->owner)
-                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->owner->name }}</span>
-                @endif
-                @if($book->responsibleAgent)
-                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->responsibleAgent->name }}</span>
-                @endif
-                @if($book->review_rhythm || $book->next_review_at)
-                    <span class="inline-flex items-center gap-1.5 {{ $book->next_review_at && $book->next_review_at->isPast() ? 'text-[color:var(--nx-warning)]' : '' }}">
-                        @svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]')
-                        Review{{ $book->review_rhythm ? ' ' . $book->review_rhythm->label() : '' }}{{ $book->next_review_at ? ' · nächstes ' . $book->next_review_at->format('d.m.Y') : '' }}
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--nx-line)] px-3 py-1 text-[color:var(--nx-muted)]">
+                        @svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->owner->name }}
                     </span>
                 @endif
-                @can('update', $book)
-                    @if(! $book->horizon_year || ! $book->review_rhythm || ! $book->next_review_at)
-                        <button type="button" wire:click="openEdit" class="inline-flex items-center gap-1 text-xs text-[color:var(--nx-muted)] underline hover:text-[color:var(--nx-text)]">
-                            @svg('heroicon-o-plus-small', 'w-3.5 h-3.5') Eckdaten ergänzen (Horizont, Review-Rhythmus)
-                        </button>
-                    @endif
-                @endcan
+                @if($book->responsibleAgent)
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--nx-line)] px-3 py-1 text-[color:var(--nx-muted)]">
+                        @svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->responsibleAgent->name }}
+                    </span>
+                @endif
+                @if($book->review_rhythm || $book->next_review_at)
+                    @php $reviewDue = $book->next_review_at && $book->next_review_at->isPast(); @endphp
+                    <span class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 {{ $reviewDue ? 'border-[color:var(--nx-warning)] text-[color:var(--nx-warning)]' : 'border-[color:var(--nx-line)] text-[color:var(--nx-muted)]' }}">
+                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                        Review{{ $book->review_rhythm ? ' ' . $book->review_rhythm->label() : '' }}{{ $book->next_review_at ? ($reviewDue ? ' · fällig seit ' : ' · nächstes ') . $book->next_review_at->format('d.m.Y') : '' }}
+                    </span>
+                @endif
+                @if($canEdit && (! $book->horizon_year || ! $book->review_rhythm || ! $book->next_review_at))
+                    <button type="button" wire:click="openEdit"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[color:var(--nx-line-strong)] px-3 py-1 text-[color:var(--nx-muted)] transition-colors hover:bg-[color:var(--nx-hover)] hover:text-[color:var(--nx-text)]">
+                        @svg('heroicon-o-plus-small', 'w-4 h-4')
+                        {{ ! $book->horizon_year ? 'Horizont' : '' }}{{ ! $book->horizon_year && (! $book->review_rhythm || ! $book->next_review_at) ? ' und ' : '' }}{{ (! $book->review_rhythm || ! $book->next_review_at) ? 'Review-Takt' : '' }} festlegen
+                    </button>
+                @endif
             </div>
 
             @if($linkingBookId === $book->id)
                 <div class="max-w-md rounded-[8px] border border-[color:var(--nx-line)] bg-[color:var(--nx-surface)] p-2">
+                    <p class="m-0 px-1 pb-2 text-xs leading-relaxed text-[color:var(--nx-muted)]">Für welche Einheit gilt dieses Book? Pro Einheit ist genau ein Book aktiv.</p>
                     <div class="mb-1 flex items-center gap-2">
-                        <input type="text" wire:model.live.debounce.300ms="linkSearch" placeholder="Knoten suchen …"
+                        <input type="text" wire:model.live.debounce.300ms="linkSearch" placeholder="Knoten suchen …" autofocus
                                class="w-full rounded-[6px] border border-[color:var(--nx-line)] bg-transparent px-2 py-1 text-sm text-[color:var(--nx-text)]" />
                         <x-nx-button variant="ghost" size="sm" wire:click="cancelLinking">Abbrechen</x-nx-button>
                     </div>
@@ -123,9 +140,9 @@
                     @endforelse
                 </div>
             @endif
-        </div>
+        </header>
 
-        {{-- Bereiche --}}
+        {{-- Bereiche: links der Inhalt des Tabs, rechts Orientierung (Erste Schritte + worum es geht) --}}
         <div>
             <x-nx-tabs>
                 @foreach($tabs as $key => $t)
@@ -135,23 +152,33 @@
                 @endforeach
             </x-nx-tabs>
 
-            @switch($activeTab)
-                @case('book')
-                    <livewire:management-book.book.chapters :book-id="$book->id" :key="'book-chapters-' . $book->id" />
-                    @break
-                @case('strategy')
-                    <livewire:management-book.book.strategy :book-id="$book->id" :key="'book-strategy-' . $book->id" />
-                    @break
-                @case('risks')
-                    <livewire:management-book.book.risks :book-id="$book->id" :key="'book-risks-' . $book->id" />
-                    @break
-                @case('committees')
-                    <livewire:management-book.book.committees :book-id="$book->id" :key="'book-committees-' . $book->id" />
-                    @break
-                @default
-                    <livewire:management-book.book.overview :book-id="$book->id" :key="'book-overview-' . $book->id" />
-            @endswitch
+            <div class="grid gap-10 xl:grid-cols-[minmax(0,1fr)_300px]">
+                <div class="min-w-0">
+                    @switch($activeTab)
+                        @case('book')
+                            <livewire:management-book.book.chapters :book-id="$book->id" :key="'book-chapters-' . $book->id" />
+                            @break
+                        @case('strategy')
+                            <livewire:management-book.book.strategy :book-id="$book->id" :key="'book-strategy-' . $book->id" />
+                            @break
+                        @case('risks')
+                            <livewire:management-book.book.risks :book-id="$book->id" :key="'book-risks-' . $book->id" />
+                            @break
+                        @case('committees')
+                            <livewire:management-book.book.committees :book-id="$book->id" :key="'book-committees-' . $book->id" />
+                            @break
+                        @default
+                            <livewire:management-book.book.overview :book-id="$book->id" :key="'book-overview-' . $book->id" />
+                    @endswitch
+                </div>
+
+                <div class="space-y-6 self-start xl:sticky xl:top-6">
+                    @include('management-book::livewire.partials.first-steps', ['steps' => $firstSteps, 'bookId' => $book->id])
+                    @include('management-book::livewire.partials.guide-rail', ['area' => $activeTab])
+                </div>
+            </div>
         </div>
+      </div>
     </x-ui-page-container>
 
     {{-- Bearbeiten --}}
@@ -169,6 +196,11 @@
                 <x-nx-input-select name="form.review_rhythm" label="Review-Rhythmus" :options="$rhythmOptions" nullable="true" wire:model="form.review_rhythm" />
                 <x-nx-input-date name="form.next_review_at" label="Nächstes Review" wire:model="form.next_review_at" />
             </div>
+            <p class="m-0 text-xs leading-relaxed text-[color:var(--nx-muted)]">
+                <span class="font-medium text-[color:var(--nx-text)]">Zieljahr</span> ist der Horizont, auf den die Regnose zurückdenkt.
+                <span class="font-medium text-[color:var(--nx-text)]">Review-Takt</span> ist die Rückkopplung im Regelkreis: Wann prüfen wir, ob das Book noch stimmt?
+                Gültig ab/bis ist rein informativ.
+            </p>
         </div>
         <x-slot name="footer">
             <div class="flex justify-end gap-3">

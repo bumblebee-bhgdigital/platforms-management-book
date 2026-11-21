@@ -7,6 +7,7 @@
         'compact'   => false,                // true: kleine Variante ohne Achsentexte (Übersicht)
         'clickable' => false,                // true: Zellen rufen wire:click="filterCell(p, i)" auf
         'selected'  => null,                 // [p, i] hervorgehobene Zelle
+        'size'      => 'md',                 // md (Default) | lg – größere Zellen (Risiken-Tab); ignoriert bei compact
     ])
 --}}
 @php
@@ -16,7 +17,8 @@
     $selected = $selected ?? null;
     $pLabels = \Platform\ManagementBook\Enums\RiskLevel::probabilityLabels();
     $iLabels = \Platform\ManagementBook\Enums\RiskLevel::impactLabels();
-    $cell = $compact ? 'h-7 min-w-7 text-xs' : 'h-12 min-w-12 text-sm';
+    $size = $size ?? 'md';
+    $cell = $compact ? 'h-7 min-w-7 text-xs' : ($size === 'lg' ? 'h-14 min-w-14 text-base' : 'h-12 min-w-12 text-sm');
 @endphp
 <div class="inline-block">
     <div class="flex">
