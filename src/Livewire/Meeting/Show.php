@@ -203,6 +203,24 @@ class Show extends Component
         $this->child(ManagementBookAgendaItem::class, $itemId)->delete();
     }
 
+    /** Entwurf eines Agenten (aus einem Signal) auf die Agenda übernehmen. */
+    public function acceptProposal(int $itemId): void
+    {
+        $item = $this->child(ManagementBookAgendaItem::class, $itemId);
+        $item->update(['proposal_status' => ManagementBookAgendaItem::PROPOSAL_ACCEPTED]);
+    }
+
+    /** Entwurf herausnehmen: das Signal geht zurück an die Einheit (lokal lösen). */
+    public function rejectProposal(int $itemId): void
+    {
+        $item = $this->child(ManagementBookAgendaItem::class, $itemId);
+        if ($item->linked_object_type === 'signals_signal' && $item->linked_object_id && class_exists(\Platform\Signals\Support\SignalFeedback::class)) {
+            \Platform\Signals\Support\SignalFeedback::decision((int) $item->linked_object_id, 'return_to_unit', 'management_book_agenda_item', (int) $item->id,
+                'Vom Vorsitz nicht auf die Agenda genommen – lokal lösen.', auth()->id());
+        }
+        $item->delete();
+    }
+
     public function toggleCheck(int $itemId, string $check): void
     {
         if (! isset($this->format()->outcomeChecks()[$check])) {

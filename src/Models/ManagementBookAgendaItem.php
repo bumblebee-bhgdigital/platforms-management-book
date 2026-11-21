@@ -43,6 +43,8 @@ class ManagementBookAgendaItem extends Model implements HasDisplayName
         'system_support',
         'organization_entity_id',
         'outcome_checks',
+        'proposal_status',
+        'local_solution_confirmed',
         'created_by',
     ];
 
@@ -53,7 +55,16 @@ class ManagementBookAgendaItem extends Model implements HasDisplayName
         'linked_object_id' => 'integer',
         'organization_entity_id' => 'integer',
         'outcome_checks' => 'array',
+        'local_solution_confirmed' => 'boolean',
     ];
+
+    public const PROPOSAL_DRAFT = 'draft';
+    public const PROPOSAL_ACCEPTED = 'accepted';
+
+    public function isProposalDraft(): bool
+    {
+        return $this->proposal_status === self::PROPOSAL_DRAFT;
+    }
 
     protected static function booted(): void
     {

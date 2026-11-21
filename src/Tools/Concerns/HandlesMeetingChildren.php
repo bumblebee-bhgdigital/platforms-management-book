@@ -40,7 +40,8 @@ trait HandlesMeetingChildren
             'agenda_item' => [
                 'label' => 'Agenda-Punkt', 'plural' => 'agenda_items', 'class' => ManagementBookAgendaItem::class,
                 'fields' => ['position', 'title', 'kind', 'description', 'owner_user_id', 'owner_agent_id', 'duration_minutes', 'linked_object_type', 'linked_object_id',
-                    'goal', 'observation', 'obstacle', 'local_solution', 'system_support', 'organization_entity_id', 'outcome_checks'],
+                    'goal', 'observation', 'obstacle', 'local_solution', 'system_support', 'organization_entity_id', 'outcome_checks',
+                    'proposal_status', 'local_solution_confirmed'],
                 'created_by' => true, 'agenda' => false, 'search' => ['title', 'description'],
             ],
             'document' => [
@@ -102,6 +103,8 @@ trait HandlesMeetingChildren
                 'local_solution' => ['type' => 'string', 'description' => 'Nur Lenkungsausschuss: 4a – Was kann der verantwortliche Bereich selbst lösen?'],
                 'system_support' => ['type' => 'string', 'description' => 'Nur Lenkungsausschuss: 4b – Wobei braucht der Bereich Unterstützung des Gesamtsystems?'],
                 'organization_entity_id' => ['type' => 'integer', 'description' => 'Optional: einbringende Einheit als Knoten der Organisation (lose).'],
+                'proposal_status' => ['type' => 'string', 'enum' => ['draft', 'accepted', ''], 'description' => 'Regelkreis: draft = Entwurf eines Agenten aus einem Signal (noch nicht vom Vorsitz übernommen), accepted = übernommen; leer = normaler Punkt.'],
+                'local_solution_confirmed' => ['type' => 'boolean', 'description' => 'Nur LA: Hat der Bereich 4a (Was kann er selbst lösen?) bestätigt?'],
                 'outcome_checks' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Nach der Sitzung erfüllte Kriterien (ersetzt die Liste), je Format. '
                     . 'LA (Handlungsfähigkeit): blockers_removed, priorities_clearer, conflicts_decided, responsibilities_clear, resources_available, unit_self_reliant. '
                     . 'Strategiemeeting (Richtungsklarheit): direction_clear, priorities_set, trade_offs_named, book_updated, communication_planned. '
@@ -122,7 +125,7 @@ trait HandlesMeetingChildren
             'decision' => [
                 'text' => ['type' => 'string', 'description' => 'Beschlusstext.'],
                 'kind' => ['type' => 'string', 'description' => 'Art des Beschlusses, abhängig vom Gremientyp (Format). '
-                    . 'Lenkungsausschuss: measure (Maßnahme, Standard), return_to_unit (zurück an den Bereich), escalation. '
+                    . 'Lenkungsausschuss: measure (Maßnahme, Standard), return_to_unit (zurück an den Bereich), escalation, frame (Entscheidungsrahmen einer Einheit – die Einheit ist die des Agendapunkts), strategy_topic (Annahme der Strategie trägt nicht → Thema fürs Strategiemeeting). Ein Beschluss zu einem Punkt aus einem Signal meldet sich automatisch beim Signal zurück. '
                     . 'Strategiemeeting: direction (Richtungsentscheidung, Standard), objective (Ziel), guardrail (Leitplanke), focus_area (Fokusraum). '
                     . 'Board: approval (Freigabe, Standard), condition (Auflage), rejection (Ablehnung). Sonstige: decision, task.'],
                 'status' => ['type' => 'string', 'enum' => DecisionStatus::values(), 'description' => 'open (offen, Default), implemented (umgesetzt), discarded (verworfen). Frei setzbar.'],
@@ -247,6 +250,8 @@ trait HandlesMeetingChildren
                 'system_support' => $m->system_support,
                 'organization_entity_id' => $m->organization_entity_id,
                 'outcome_checks' => $m->outcome_checks ?? [],
+                'proposal_status' => $m->proposal_status,
+                'local_solution_confirmed' => (bool) $m->local_solution_confirmed,
             ],
             'document' => [
                 'agenda_item_id' => $m->agenda_item_id,

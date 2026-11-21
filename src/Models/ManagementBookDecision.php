@@ -51,6 +51,19 @@ class ManagementBookDecision extends Model implements HasDisplayName
                 $model->status = DecisionStatus::OPEN;
             }
         });
+        // Regelkreis: Beschluss zu einem LA-Punkt, der aus einem Signal stammt → Rückmeldung ans Signal
+        static::created(function (self $model) {
+            if (! $model->agenda_item_id || ! class_exists(\Platform\Signals\Support\SignalFeedback::class)) {
+                return;
+            }
+            $item = ManagementBookAgendaItem::withTrashed()->find($model->agenda_item_id);
+            if ($item && $item->linked_object_type === 'signals_signal' && $item->linked_object_id) {
+                \Platform\Signals\Support\SignalFeedback::decision(
+                    (int) $item->linked_object_id, (string) ($model->kind ?: 'measure'), 'management_book_decision',
+                    (int) $model->id, (string) $model->text, $model->created_by ? (int) $model->created_by : null,
+                );
+            }
+        });
         static::saving(function (self $model) {
             if ($model->agenda_item_id) {
                 $item = ManagementBookAgendaItem::withTrashed()->find($model->agenda_item_id);

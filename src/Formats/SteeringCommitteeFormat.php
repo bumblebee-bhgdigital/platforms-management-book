@@ -38,7 +38,13 @@ class SteeringCommitteeFormat extends CommitteeFormat
 
     public function decisionKinds(): array
     {
-        return ['measure' => 'Maßnahme', 'return_to_unit' => 'Zurück an den Bereich', 'escalation' => 'Eskalation'];
+        return [
+            'measure' => 'Maßnahme',
+            'return_to_unit' => 'Zurück an den Bereich',
+            'escalation' => 'Eskalation',
+            'frame' => 'Entscheidungsrahmen',
+            'strategy_topic' => 'Thema fürs Strategiemeeting',
+        ];
     }
 
     public function agendaFields(): array

@@ -202,6 +202,7 @@ class ManagementBookServiceProvider extends ServiceProvider
         $this->registerEntityLinkProvider();
         $this->registerImpactSource();
         $this->registerStrategySource();
+        $this->registerCommitteeGateway();
         $this->registerTools();
 
         /**
@@ -236,6 +237,18 @@ class ManagementBookServiceProvider extends ServiceProvider
             }
         } catch (\Throwable $e) {
             // People-Modul nicht geladen
+        }
+    }
+
+    /** Gremien-Brücke für das Signals-Modul (Regelkreis Einheit → Lenkungsausschuss), nur wenn Signals da ist. */
+    protected function registerCommitteeGateway(): void
+    {
+        try {
+            if (interface_exists(\Platform\Signals\Contracts\CommitteeGateway::class) && class_exists(\Platform\Signals\Support\CommitteeGateways::class)) {
+                \Platform\Signals\Support\CommitteeGateways::register(new \Platform\ManagementBook\Signals\ManagementBookCommitteeGateway());
+            }
+        } catch (\Throwable $e) {
+            // Signals-Modul nicht geladen
         }
     }
 

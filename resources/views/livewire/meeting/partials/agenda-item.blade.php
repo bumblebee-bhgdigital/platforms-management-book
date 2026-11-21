@@ -23,8 +23,19 @@
                     @if($item->ownerUser)<span>{{ $item->ownerUser->name }}</span>@endif
                     @if($item->duration_minutes)<span>{{ $item->duration_minutes }} Min.</span>@endif
                     @unless($guided || $isInfo)<span class="text-[color:var(--nx-faint)]">{{ $texts['unguided'] }}</span>@endunless
+                    @if($item->linked_object_type === 'signals_signal')<span>aus Signal #{{ $item->linked_object_id }}@if($item->ownerAgent) · vorbereitet von {{ $item->ownerAgent->name }}@endif</span>@endif
+                    @if($item->linked_object_type === 'signals_signal' && ! $item->local_solution_confirmed)<span class="text-[color:var(--nx-warning)]">4a noch nicht vom Bereich bestätigt</span>@endif
                 </div>
             </button>
+            @if($item->isProposalDraft())
+                <x-nx-badge variant="warning" title="Ein Agent hat diesen Punkt aus einem Signal vorbereitet. Der Vorsitz entscheidet, ob er auf die Agenda kommt.">Entwurf</x-nx-badge>
+                @if($canEdit)
+                    <div class="flex shrink-0 items-center gap-1">
+                        <x-nx-button variant="secondary" size="sm" wire:click="acceptProposal({{ $item->id }})">Übernehmen</x-nx-button>
+                        <x-nx-button variant="ghost" size="sm" wire:click="rejectProposal({{ $item->id }})" wire:confirm="Entwurf herausnehmen? Das Signal geht zurück an den Bereich.">Herausnehmen</x-nx-button>
+                    </div>
+                @endif
+            @endif
             @if($verdict)
                 <x-nx-badge :variant="$verdict['variant']" title="{{ count($checked) }} von {{ $checkMax }} Kriterien">{{ count($checked) }}/{{ $checkMax }} · {{ $verdict['label'] }}</x-nx-badge>
             @endif
