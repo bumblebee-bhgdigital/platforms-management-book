@@ -224,6 +224,8 @@ class ManagementBookServiceProvider extends ServiceProvider
             \Platform\ManagementBook\Models\ManagementBook::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBook::class,
             \Platform\ManagementBook\Models\ManagementBookCommittee::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBookCommittee::class,
             \Platform\ManagementBook\Models\ManagementBookMeeting::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBookMeeting::class,
+            \Platform\ManagementBook\Models\ManagementBookAgendaItem::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBookAgendaItem::class,
+            \Platform\ManagementBook\Models\ManagementBookDecision::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBookDecision::class,
         ]);
     }
 

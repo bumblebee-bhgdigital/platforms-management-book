@@ -19,6 +19,8 @@ use Platform\ManagementBook\Models\Concerns\GeneratesUuid;
  */
 class ManagementBookAgendaItem extends Model implements HasDisplayName
 {
+    public const MORPH_ALIAS = 'management_book_agenda_item';
+
     use SoftDeletes, GeneratesUuid, BelongsToMeeting;
 
     protected $table = 'management_book_agenda_items';

@@ -2,128 +2,34 @@
 
 namespace Platform\ManagementBook\Signals;
 
+use Illuminate\Support\Facades\Event;
 use Platform\ManagementBook\Enums\CommitteeType;
+use Platform\ManagementBook\Events\AgendaItemDecided;
+use Platform\ManagementBook\Events\AgendaProposalRejected;
 use Platform\ManagementBook\Models\ManagementBookAgendaItem;
 use Platform\ManagementBook\Models\ManagementBookCommittee;
 use Platform\ManagementBook\Models\ManagementBookDecision;
 use Platform\ManagementBook\Models\ManagementBookMeeting;
-use Platform\Organization\Models\OrganizationEntity;
 use Platform\Signals\Contracts\CommitteeGateway;
 
 /**
- * Gremien-Brücke für das Signals-Modul (Regelkreis Einheit → Lenkungsausschuss).
- * Der LA „über“ einer Einheit ist der Lenkungsausschuss, dessen Träger-Einheit (nächster Vorfahr des Gremium-Knotens,
- * der kein Ordner/Gremium ist) die Einheit selbst oder ihr nächster Vorfahr ist.
+ * Gremien-Brücke für das Signals-Modul. Liefert nur, was das Book selbst weiß: aktive Lenkungsausschüsse,
+ * Sitzungen, Entscheidungsrahmen, Entwürfe und den Rückweg der Beschlüsse. Regelkreis, Ebenen und Stewards
+ * leitet Signals selbst ab – das Book kennt weder Knotentypen der Organisation noch Signale.
  */
 class ManagementBookCommitteeGateway implements CommitteeGateway
 {
-    private const NOT_A_CARRIER = ['container', 'board'];
-
-    public function committeeAbove(int $unitEntityId): ?array
+    public function committees(): array
     {
-        $byCarrier = $this->committeesByCarrier();
-        if ($byCarrier === []) {
-            return null;
-        }
-        $proxy = null;
-        $current = OrganizationEntity::with('type:id,code,vsm_class')->find($unitEntityId);
-        for ($depth = 0; $current && $depth < 30; $depth++) {
-            if (isset($byCarrier[$current->id])) {
-                return $this->describe($byCarrier[$current->id], (int) $current->id) + ['proxy_for_entity_id' => $proxy];
-            }
-            // Träger ohne eigenen aktiven LA: der LA darüber arbeitet stellvertretend für den obersten solchen Träger
-            if ($current->type?->vsm_class === 'carrier') {
-                $proxy = (int) $current->id;
-            }
-            $current = $current->parent_entity_id ? OrganizationEntity::with('type:id,code,vsm_class')->find($current->parent_entity_id) : null;
-        }
-
-        return null;
-    }
-
-    public function committeeInfo(int $committeeEntityId): ?array
-    {
-        $c = ManagementBookCommittee::query()->where('organization_entity_id', $committeeEntityId)->first();
-        $carrier = $c ? $this->carrierOf($committeeEntityId) : null;
-
-        return $c ? $this->describe($c, $carrier) : null;
-    }
-
-    public function committeeAboveCommittee(int $committeeEntityId): ?array
-    {
-        $carrier = $this->carrierOf($committeeEntityId);
-        $parent = $carrier ? OrganizationEntity::whereKey($carrier)->value('parent_entity_id') : null;
-
-        return $parent ? $this->committeeAbove((int) $parent) : null;
-    }
-
-    /**
-     * Stewards des Regelkreises: Beziehung „betreut (Regelkreis)“ (Code stewards) von Person/Agent zum Gremium-Knoten;
-     * zusätzlich der verantwortliche Agent des Gremiums (Übergang).
-     */
-    public function stewards(int $committeeEntityId): array
-    {
-        $out = [];
-        if (class_exists(\Platform\Organization\Models\OrganizationEntityRelationship::class)) {
-            $rels = \Platform\Organization\Models\OrganizationEntityRelationship::query()
-                ->where('to_entity_id', $committeeEntityId)
-                ->whereHas('relationType', fn ($q) => $q->where('code', 'stewards'))
-                ->with('fromEntity.type:id,code')->get();
-            foreach ($rels as $r) {
-                if ($e = $r->fromEntity) {
-                    $out[(int) $e->id] = ['entity_id' => (int) $e->id, 'name' => $e->name, 'user_id' => $e->linked_user_id ? (int) $e->linked_user_id : null, 'is_agent' => $e->type?->code === 'agent'];
-                }
-            }
-        }
-        $c = ManagementBookCommittee::query()->where('organization_entity_id', $committeeEntityId)->first();
-        if ($c && $c->responsible_agent_id) {
-            $e = OrganizationEntity::query()->where('linked_user_id', $c->responsible_agent_id)->first();
-            $key = $e ? (int) $e->id : 'u' . $c->responsible_agent_id;
-            $out[$key] ??= ['entity_id' => $e ? (int) $e->id : null, 'name' => $e?->name ?? \Platform\Core\Models\User::whereKey($c->responsible_agent_id)->value('name'), 'user_id' => (int) $c->responsible_agent_id, 'is_agent' => true];
-        }
-
-        return array_values($out);
-    }
-
-    public function committeesStewardedBy(int $userId): array
-    {
-        $out = [];
-        foreach (ManagementBookCommittee::query()->where('type', CommitteeType::STEERING_COMMITTEE->value)->where('status', 'active')->whereNotNull('organization_entity_id')->get() as $c) {
-            $isSteward = collect($this->stewards((int) $c->organization_entity_id))->contains(fn ($s) => (int) ($s['user_id'] ?? 0) === $userId);
-            if ($isSteward) {
-                $out[] = $this->describe($c, $this->carrierOf((int) $c->organization_entity_id));
-            }
-        }
-
-        return $out;
-    }
-
-    /** @return array<int, ManagementBookCommittee> Träger-Einheit => aktiver LA */
-    private function committeesByCarrier(): array
-    {
-        $byCarrier = [];
-        foreach (ManagementBookCommittee::query()->where('type', CommitteeType::STEERING_COMMITTEE->value)->where('status', 'active')->whereNotNull('organization_entity_id')->get() as $c) {
-            if ($carrier = $this->carrierOf((int) $c->organization_entity_id)) {
-                $byCarrier[$carrier] ??= $c;
-            }
-        }
-
-        return $byCarrier;
-    }
-
-    /** Ebene aus dem Trägertyp: Gruppe (Venture-Träger, Holding, Gruppe) oder operative Einheit. */
-    private function describe(ManagementBookCommittee $c, ?int $carrierId): array
-    {
-        $carrierType = $carrierId ? OrganizationEntity::with('type:id,code')->find($carrierId)?->type?->code : null;
-
-        return [
-            'committee_id' => (int) $c->id,
-            'entity_id' => (int) $c->organization_entity_id,
-            'name' => $c->organizationNode?->name ?? $c->name,
-            'carrier_entity_id' => $carrierId,
-            'carrier_name' => $carrierId ? OrganizationEntity::whereKey($carrierId)->value('name') : null,
-            'level' => in_array($carrierType, ['venture_builder', 'holding', 'group'], true) ? 'group' : 'unit',
-        ];
+        return ManagementBookCommittee::query()
+            ->where('type', CommitteeType::STEERING_COMMITTEE->value)->where('status', 'active')
+            ->whereNotNull('organization_entity_id')->orderBy('id')->get()
+            ->map(fn (ManagementBookCommittee $c) => [
+                'committee_id' => (int) $c->id,
+                'entity_id' => (int) $c->organization_entity_id,
+                'name' => $c->organizationNode?->name ?? $c->name,
+                'responsible_user_ids' => $c->responsible_agent_id ? [(int) $c->responsible_agent_id] : [],
+            ])->all();
     }
 
     public function nextMeeting(int $committeeEntityId): ?array
@@ -145,14 +51,15 @@ class ManagementBookCommitteeGateway implements CommitteeGateway
         ] : null;
     }
 
-    public function frames(int $unitEntityId): array
+    public function frames(int $entityId): array
     {
         return ManagementBookDecision::query()
-            ->where('kind', 'frame')
+            ->where('kind', self::KIND_FRAME)
             ->where('status', '!=', 'discarded')
-            ->whereHas('agendaItem', fn ($q) => $q->where('organization_entity_id', $unitEntityId))
+            ->whereHas('agendaItem', fn ($q) => $q->where('organization_entity_id', $entityId))
             ->orderByDesc('created_at')->limit(20)->get()
             ->map(fn (ManagementBookDecision $d) => [
+                'type' => ManagementBookDecision::MORPH_ALIAS,
                 'decision_id' => (int) $d->id,
                 'text' => $d->text,
                 'since' => $d->created_at?->toDateString(),
@@ -166,7 +73,7 @@ class ManagementBookCommitteeGateway implements CommitteeGateway
         $existing = ManagementBookAgendaItem::query()->where('meeting_id', $meetingId)
             ->where('linked_object_type', $linkType)->where('linked_object_id', $linkId)->first();
         if ($existing) {
-            return ['type' => 'management_book_agenda_item', 'id' => (int) $existing->id, 'meeting_id' => $meetingId, 'url' => $this->meetingUrl($meeting)];
+            return ['type' => ManagementBookAgendaItem::MORPH_ALIAS, 'id' => (int) $existing->id, 'meeting_id' => $meetingId, 'url' => $this->meetingUrl($meeting)];
         }
 
         $agenda = $meeting->agendaItems()->create([
@@ -187,21 +94,26 @@ class ManagementBookCommitteeGateway implements CommitteeGateway
             'proposal_status' => ManagementBookAgendaItem::PROPOSAL_DRAFT,
         ]);
 
-        return ['type' => 'management_book_agenda_item', 'id' => (int) $agenda->id, 'meeting_id' => $meetingId, 'url' => $this->meetingUrl($meeting)];
+        return ['type' => ManagementBookAgendaItem::MORPH_ALIAS, 'id' => (int) $agenda->id, 'meeting_id' => $meetingId, 'url' => $this->meetingUrl($meeting)];
     }
 
-    /** Träger-Einheit eines Gremium-Knotens: nächster Vorfahr, der weder Ordner noch Gremium ist. */
-    private function carrierOf(int $committeeEntityId): ?int
+    public function onOutcome(callable $handler): void
     {
-        $current = OrganizationEntity::with('type:id,code')->find($committeeEntityId);
-        for ($depth = 0; $current && $depth < 30; $depth++) {
-            $current = $current->parent_entity_id ? OrganizationEntity::with('type:id,code')->find($current->parent_entity_id) : null;
-            if ($current && ! in_array($current->type?->code, self::NOT_A_CARRIER, true)) {
-                return (int) $current->id;
+        Event::listen(AgendaItemDecided::class, function (AgendaItemDecided $e) use ($handler) {
+            $item = $e->agendaItem;
+            if ($item->linked_object_type && $item->linked_object_id) {
+                $handler((string) $item->linked_object_type, (int) $item->linked_object_id, (string) ($e->decision->kind ?: self::KIND_MEASURE),
+                    ManagementBookDecision::MORPH_ALIAS, (int) $e->decision->id, (string) $e->decision->text,
+                    $e->decision->created_by ? (int) $e->decision->created_by : null);
             }
-        }
-
-        return null;
+        });
+        Event::listen(AgendaProposalRejected::class, function (AgendaProposalRejected $e) use ($handler) {
+            $item = $e->agendaItem;
+            if ($item->linked_object_type && $item->linked_object_id) {
+                $handler((string) $item->linked_object_type, (int) $item->linked_object_id, self::KIND_RETURN_TO_UNIT,
+                    ManagementBookAgendaItem::MORPH_ALIAS, (int) $item->id, 'Vom Vorsitz nicht auf die Agenda genommen – lokal lösen.', $e->byUserId);
+            }
+        });
     }
 
     private function meetingUrl(ManagementBookMeeting $meeting): ?string

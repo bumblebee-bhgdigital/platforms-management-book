@@ -18,6 +18,8 @@ use Platform\ManagementBook\Models\Concerns\GeneratesUuid;
  */
 class ManagementBookDecision extends Model implements HasDisplayName
 {
+    public const MORPH_ALIAS = 'management_book_decision';
+
     use SoftDeletes, GeneratesUuid, BelongsToMeeting;
 
     protected $table = 'management_book_decisions';
