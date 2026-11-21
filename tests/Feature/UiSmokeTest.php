@@ -34,7 +34,9 @@ class UiSmokeTest extends TestCase
     public function test_dashboard_committee_meeting_render(): void
     {
         $d = $this->seedBook();
-        $this->get(route('management-book.dashboard'))->assertOk()->assertSee('Management Book 2027');
+        // Book muss aus dem Dashboard per echtem Link erreichbar sein (nicht nur per onclick)
+        $this->get(route('management-book.dashboard'))->assertOk()->assertSee('Management Book 2027')
+            ->assertSee('href="' . route('management-book.books.show', $d['book']) . '"', false);
         $this->get(route('management-book.committees.show', $d['committee']))->assertOk();
         $this->get(route('management-book.meetings.show', $d['past']))->assertOk();
         $this->get(route('management-book.meetings.show', $d['next']))->assertOk();

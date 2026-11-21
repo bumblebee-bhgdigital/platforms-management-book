@@ -174,13 +174,13 @@
                 <x-nx-card flush>
                     <ul class="m-0 list-none divide-y divide-[color:var(--nx-line)] p-0">
                         @if($i['review_due'])
-                            <li><x-nx-list-item icon="heroicon-o-arrow-path" title="Review des Books fällig" :subtitle="'seit ' . $book->next_review_at->format('d.m.Y')">
+                            <li><x-nx-list-item icon="heroicon-o-arrow-path" title="Review des Books fällig" :subtitle="'seit ' . $book->next_review_at->format('d.m.Y')" :href="route('management-book.books.show', $book) . '?tab=book'">
                                 <x-slot name="trailing"><x-nx-badge variant="warning">Rückkopplung</x-nx-badge></x-slot>
                             </x-nx-list-item></li>
                         @endif
                         @foreach($i['milestones']['overdue']->take(5) as $m)
                             <li wire:key="od-ms-{{ $m->id }}">
-                                <x-nx-list-item icon="heroicon-o-flag" :title="$m->title" :subtitle="$m->focusArea?->title" :meta="\Platform\ManagementBook\Services\BookInsights::milestoneWhen($m)">
+                                <x-nx-list-item icon="heroicon-o-flag" :title="$m->title" :subtitle="$m->focusArea?->title" :meta="\Platform\ManagementBook\Services\BookInsights::milestoneWhen($m)" :href="route('management-book.books.show', $book) . '?tab=strategy&view=map'">
                                     <x-slot name="trailing"><x-nx-badge variant="warning">Meilenstein</x-nx-badge></x-slot>
                                 </x-nx-list-item>
                             </li>
