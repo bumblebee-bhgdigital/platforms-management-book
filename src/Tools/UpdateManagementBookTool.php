@@ -79,7 +79,7 @@ class UpdateManagementBookTool implements ToolContract, ToolMetadataContract
             $service = app(ManagementBookService::class);
             $superseded = [];
 
-            $fields = array_intersect_key($arguments, array_flip(['title', 'description', 'valid_from', 'valid_until', 'horizon_year', 'owner_user_id', 'responsible_agent_user_id', 'review_rhythm', 'next_review_at']));
+            $fields = array_intersect_key($arguments, array_flip(['title', 'description', 'valid_from', 'valid_until', 'horizon_year', 'owner_user_id', 'responsible_agent_user_id', 'review_rhythm', 'next_review_at', 'risk_appetite']));
             if ($fields !== []) {
                 $book = $service->update($book, $fields);
             }

@@ -28,3 +28,13 @@ MCP-Tools (Präfix `management-book.`, je GET/POST/PUT/DELETE; Anlegen immer mit
 - `meeting_attendees.*`: genau eines von `user_id|agent_id`, `role` (frei), `attended` (Default false). Je Sitzung ist ein User/Agent nur einmal erlaubt. Löschen ist hart, alle anderen Kinder werden soft-gelöscht.
 
 Soft-Delete einer Sitzung kaskadiert nicht auf die Kinder (wie Gremium -> Sitzung); die Kinder sind dann über die Policy nicht mehr les-/schreibbar. Tests: `tests/Feature/MeetingChildrenSmokeTest.php` (läuft in der Verifikations-App `/app` mit sqlite-`:memory:`; Anleitung im Datei-Kopf).
+
+## Risiken im Book (#1054, Spezifikation #1048)
+
+Je Management Book eine Risikomatrix nach der Vorlage von Burkhard Schmitz. Reine Datenhaltung, alle Felder frei schreibbar (auch `status`), keine Ablauflogik.
+
+- **Risiko** (`management_book_risks`): `number` (Risikonr.), `title`, `description`, `organization_entity_id` (Bereich/Abteilung als Knoten der Organisation, lose ohne FK), `probability` E (1–5), `impact` A (1–5), `score` = E × A (berechnet, gespeichert), `category` (frei), `measures_planned`, `measures_implemented`, `owner_user_id|owner_agent_id`, `due_date` (Frist), `status` (`open|monitored|treated|closed`, Default `open`), `review_date`. Soft-Delete.
+- **Ampel** (abgeleitet, nicht gespeichert): 1–4 `low` (grün, beobachten) · 5–9 `moderate` (gelb, Maßnahmen prüfen) · 10–15 `high` (orange, umsetzen + überwachen) · 16–25 `critical` (rot, sofort handeln). Ohne E oder A kein Score.
+- **Risikobereitschaft** am Book: `risk_appetite` (`very_low|low|moderate|high|very_high`, Risiko-Skala Q-Meeting Folie 10), über `management-book.books.PUT`.
+
+MCP-Tools (Präfix `management-book.`): `risks.GET` (Filter `status`, `level`, `organization_entity_id`, `category`, `owner_user_id`, `search`; nach Score absteigend; mit `management_book_id` zusätzlich 5×5-Matrix, Verteilung je Ampelstufe und Risikobereitschaft), `risks.POST`, `risks.PUT`, `risks.DELETE`. Rechte erbt das Risiko vom Book. Tests: `tests/Feature/RisksSmokeTest.php` (Pfad zum Modul per `MB_MODULE_PATH`).
