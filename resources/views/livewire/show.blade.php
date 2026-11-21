@@ -76,16 +76,33 @@
                         @endif
                     @endcan
                 </span>
-                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-flag', 'w-4 h-4 text-[color:var(--nx-faint)]') Horizont {{ $book->horizon_year ?? '–' }}</span>
-                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-calendar-days', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->valid_from?->format('d.m.Y') ?? '–' }} – {{ $book->valid_until?->format('d.m.Y') ?? '–' }}</span>
-                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->owner?->name ?? 'kein Owner' }}</span>
+                @if($book->horizon_year)
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-flag', 'w-4 h-4 text-[color:var(--nx-faint)]') Horizont {{ $book->horizon_year }}</span>
+                @endif
+                @if($book->valid_from || $book->valid_until)
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-calendar-days', 'w-4 h-4 text-[color:var(--nx-faint)]')
+                        {{ $book->valid_from ? 'ab ' . $book->valid_from->format('d.m.Y') : '' }}{{ $book->valid_from && $book->valid_until ? ' ' : '' }}{{ $book->valid_until ? 'bis ' . $book->valid_until->format('d.m.Y') : '' }}
+                    </span>
+                @endif
+                @if($book->owner)
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->owner->name }}</span>
+                @endif
                 @if($book->responsibleAgent)
                     <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->responsibleAgent->name }}</span>
                 @endif
-                <span class="inline-flex items-center gap-1.5 {{ $book->next_review_at && $book->next_review_at->isPast() ? 'text-[color:var(--nx-warning)]' : '' }}">
-                    @svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]')
-                    Review {{ $book->review_rhythm?->label() ?? '' }}{{ $book->next_review_at ? ' · ' . $book->next_review_at->format('d.m.Y') : ' –' }}
-                </span>
+                @if($book->review_rhythm || $book->next_review_at)
+                    <span class="inline-flex items-center gap-1.5 {{ $book->next_review_at && $book->next_review_at->isPast() ? 'text-[color:var(--nx-warning)]' : '' }}">
+                        @svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]')
+                        Review{{ $book->review_rhythm ? ' ' . $book->review_rhythm->label() : '' }}{{ $book->next_review_at ? ' · nächstes ' . $book->next_review_at->format('d.m.Y') : '' }}
+                    </span>
+                @endif
+                @can('update', $book)
+                    @if(! $book->horizon_year || ! $book->review_rhythm || ! $book->next_review_at)
+                        <button type="button" wire:click="openEdit" class="inline-flex items-center gap-1 text-xs text-[color:var(--nx-muted)] underline hover:text-[color:var(--nx-text)]">
+                            @svg('heroicon-o-plus-small', 'w-3.5 h-3.5') Eckdaten ergänzen (Horizont, Review-Rhythmus)
+                        </button>
+                    @endif
+                @endcan
             </div>
 
             @if($linkingBookId === $book->id)

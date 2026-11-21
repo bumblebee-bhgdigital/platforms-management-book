@@ -278,6 +278,39 @@ class BookInsights
      * @param Collection<int,ManagementBook> $books sichtbare Books
      * @return array<string,mixed>
      */
+    /**
+     * Kompakte Lage je Book für Listen (Dashboard): kritische/hohe Risiken, nächste Sitzung,
+     * offene/überfällige Beschlüsse, überfällige Meilensteine, geschriebene Kapitel.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function perBookSummary(Collection $bookIds, Collection $risks, Collection $meetings, Collection $decisions, Collection $overdueMilestones): array
+    {
+        $chapters = \Platform\ManagementBook\Models\ManagementBookStrategicDocument::query()
+            ->whereIn('management_book_id', $bookIds)->where('is_active', true)
+            ->selectRaw('management_book_id, count(distinct type) as n')->groupBy('management_book_id')->pluck('n', 'management_book_id');
+        $bookOfMeeting = $meetings->mapWithKeys(fn ($m) => [$m->id => $m->committee?->management_book_id]);
+
+        $out = [];
+        foreach ($bookIds as $id) {
+            $bookRisks = $risks->where('management_book_id', $id);
+            $bookMeetings = $meetings->filter(fn ($m) => $m->committee?->management_book_id === $id);
+            $bookDecisions = $decisions->filter(fn ($d) => ($bookOfMeeting[$d->meeting_id] ?? null) === $id);
+            $out[$id] = [
+                'risks_hot' => $bookRisks->filter(fn ($r) => in_array(RiskLevel::fromScore($r->score), [RiskLevel::HIGH, RiskLevel::CRITICAL], true))->count(),
+                'risks_critical' => $bookRisks->filter(fn ($r) => RiskLevel::fromScore($r->score) === RiskLevel::CRITICAL)->count(),
+                'next_meeting' => $bookMeetings->filter(fn ($m) => $m->scheduled_at && $m->scheduled_at->gte(now())
+                    && ! in_array($m->status, [MeetingStatus::CANCELLED, MeetingStatus::HELD], true))->sortBy('scheduled_at')->first(),
+                'open_decisions' => $bookDecisions->count(),
+                'overdue_decisions' => $bookDecisions->filter(fn ($d) => $d->due_date && $d->due_date->lt(today()))->count(),
+                'overdue_milestones' => $overdueMilestones->where('management_book_id', $id)->count(),
+                'chapters' => (int) ($chapters[$id] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
     public function forBooks(Collection $books): array
     {
         $bookIds = $books->pluck('id');
@@ -317,6 +350,7 @@ class BookInsights
             'top_risks' => $risks->whereNotNull('score')->sortByDesc('score')->take(6)->values(),
             'book_titles' => $titles,
             'committee_books' => $meetings->pluck('committee.management_book_id', 'committee_id'),
+            'per_book' => $this->perBookSummary($bookIds, $risks, $meetings, $decisions, $overdueMilestones),
         ];
     }
 }

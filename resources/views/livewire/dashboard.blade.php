@@ -131,43 +131,50 @@
                 </x-nx-card>
             @else
                 <x-nx-card flush>
-                    <x-nx-table>
-                        <x-nx-table-header>
-                            <x-nx-table-header-cell>Titel</x-nx-table-header-cell>
-                            <x-nx-table-header-cell>Knoten</x-nx-table-header-cell>
-                            <x-nx-table-header-cell>Status</x-nx-table-header-cell>
-                            <x-nx-table-header-cell>Horizont</x-nx-table-header-cell>
-                            <x-nx-table-header-cell>Gültig</x-nx-table-header-cell>
-                            <x-nx-table-header-cell>Owner</x-nx-table-header-cell>
-                            <x-nx-table-header-cell align="right">Nächstes Review</x-nx-table-header-cell>
-                        </x-nx-table-header>
-                        <x-nx-table-body>
-                            @foreach($books as $book)
-                                <x-nx-table-row wire:key="book-row-{{ $book->id }}" :href="route('management-book.books.show', $book)">
-                                    <x-nx-table-cell>
-                                        {{ $book->title }}
-                                        @if($multiTeam && $book->team)
-                                            <span class="ml-1 text-xs text-[color:var(--nx-muted)]">{{ $book->team->name }}</span>
-                                        @endif
-                                    </x-nx-table-cell>
-                                    <x-nx-table-cell>
-                                        @forelse($nodesByBook[$book->id] ?? [] as $node)
-                                            <span class="text-xs">{{ $node['name'] }}</span>@if(! $loop->last), @endif
-                                        @empty
-                                            <span class="text-xs text-[color:var(--nx-muted)]">Unverknüpft</span>
-                                        @endforelse
-                                    </x-nx-table-cell>
-                                    <x-nx-table-cell><x-nx-badge :variant="$book->status->badgeVariant()" dot>{{ $book->status->label() }}</x-nx-badge></x-nx-table-cell>
-                                    <x-nx-table-cell>{{ $book->horizon_year ?? '–' }}</x-nx-table-cell>
-                                    <x-nx-table-cell>
-                                        {{ $book->valid_from?->format('d.m.Y') ?? '–' }} – {{ $book->valid_until?->format('d.m.Y') ?? '–' }}
-                                    </x-nx-table-cell>
-                                    <x-nx-table-cell>{{ $book->owner?->name ?? '–' }}</x-nx-table-cell>
-                                    <x-nx-table-cell align="right">{{ $book->next_review_at?->format('d.m.Y') ?? '–' }}</x-nx-table-cell>
-                                </x-nx-table-row>
-                            @endforeach
-                        </x-nx-table-body>
-                    </x-nx-table>
+                    <ul class="m-0 list-none divide-y divide-[color:var(--nx-line)] p-0">
+                        @foreach($books as $book)
+                            @php $pb = $i['per_book'][$book->id] ?? []; @endphp
+                            <li wire:key="book-row-{{ $book->id }}">
+                                <a href="{{ route('management-book.books.show', $book) }}" wire:navigate
+                                   class="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-[color:var(--nx-hover)]">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[color:var(--nx-line)] bg-[color:var(--nx-bg)]">
+                                        @svg('heroicon-o-book-open', 'w-4 h-4 text-[color:var(--nx-muted)]')
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="flex items-center gap-2">
+                                            <span class="truncate text-sm font-medium text-[color:var(--nx-text)]">{{ $book->title }}</span>
+                                            <x-nx-badge :variant="$book->status->badgeVariant()" dot>{{ $book->status->label() }}</x-nx-badge>
+                                        </span>
+                                        <span class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[color:var(--nx-faint)]">
+                                            <span class="inline-flex items-center gap-1">
+                                                @svg('heroicon-o-building-office', 'w-3.5 h-3.5')
+                                                @forelse($nodesByBook[$book->id] ?? [] as $node){{ $node['name'] }}@if(! $loop->last), @endif
+                                                @empty Unverknüpft
+                                                @endforelse
+                                            </span>
+                                            @if($book->horizon_year)<span>Horizont {{ $book->horizon_year }}</span>@endif
+                                            @if($book->owner)<span>{{ $book->owner->name }}</span>@endif
+                                            @if($multiTeam && $book->team)<span>{{ $book->team->name }}</span>@endif
+                                        </span>
+                                    </span>
+                                    {{-- Lage des Books: nur, was Aufmerksamkeit braucht, sonst ruhig --}}
+                                    <span class="hidden shrink-0 items-center gap-4 text-xs text-[color:var(--nx-muted)] md:flex">
+                                        <span class="w-20 text-right tabular-nums" title="Geschriebene Kapitel">{{ $pb['chapters'] ?? 0 }}/9 Kapitel</span>
+                                        <span class="w-24 text-right tabular-nums {{ ($pb['risks_critical'] ?? 0) > 0 ? 'text-[color:var(--nx-danger)]' : (($pb['risks_hot'] ?? 0) > 0 ? 'text-[color:var(--nx-warning)]' : '') }}" title="Kritische und hohe Risiken">
+                                            {{ $pb['risks_hot'] ?? 0 }} Risiken ≥ hoch
+                                        </span>
+                                        <span class="w-28 text-right tabular-nums {{ ($pb['overdue_decisions'] ?? 0) > 0 ? 'text-[color:var(--nx-warning)]' : '' }}" title="Offene Beschlüsse">
+                                            {{ $pb['open_decisions'] ?? 0 }} Beschlüsse{{ ($pb['overdue_decisions'] ?? 0) > 0 ? ' (' . $pb['overdue_decisions'] . ' überf.)' : '' }}
+                                        </span>
+                                        <span class="w-28 text-right tabular-nums" title="Nächste Sitzung">
+                                            {{ ($pb['next_meeting'] ?? null)?->scheduled_at?->format('d.m. H:i') ?? 'keine Sitzung' }}
+                                        </span>
+                                    </span>
+                                    @svg('heroicon-o-chevron-right', 'w-4 h-4 shrink-0 text-[color:var(--nx-faint)] transition-transform group-hover:translate-x-0.5')
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
                 </x-nx-card>
             @endif
         </x-nx-section>
