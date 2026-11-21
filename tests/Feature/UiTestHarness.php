@@ -67,6 +67,48 @@ trait UiTestHarness
         @mkdir($layoutDir . '/layouts', 0777, true);
         file_put_contents($layoutDir . '/layouts/app.blade.php', '<html><body>{{ $slot }}</body></html>');
         $this->app['view']->prependNamespace('platform', $layoutDir);
+
+        $this->bootSlidesIfConfigured();
+    }
+
+    /**
+     * Optional: Slides-Modul aus SLIDES_MODULE_PATH mitladen (Integration Präsentationen ↔ Sitzung/Gremium).
+     * Ohne die Variable läuft alles wie bisher – der Präsentations-Abschnitt bleibt ausgeblendet.
+     */
+    protected function bootSlidesIfConfigured(): void
+    {
+        $slides = getenv('SLIDES_MODULE_PATH');
+        if (! $slides || ! is_dir($slides)) {
+            return;
+        }
+        spl_autoload_register(function ($c) use ($slides) {
+            $p = 'Platform\\Slides\\';
+            if (str_starts_with($c, $p)) {
+                $f = $slides . '/src/' . str_replace('\\', '/', substr($c, strlen($p))) . '.php';
+                if (is_file($f)) {
+                    require $f;
+                }
+            }
+        });
+        $files = glob($slides . '/database/migrations/*.php');
+        sort($files);
+        foreach ($files as $f) {
+            try {
+                (require $f)->up();
+            } catch (\Throwable $e) {
+                // ignorieren
+            }
+        }
+        $provider = $this->app->register(\Platform\Slides\SlidesServiceProvider::class);
+        $m = new \ReflectionMethod($provider, 'registerLivewireComponents');
+        $m->setAccessible(true);
+        $m->invoke($provider);
+        if (! \Illuminate\Support\Facades\Route::has('slides.dashboard')) {
+            \Illuminate\Support\Facades\Route::middleware('web')->prefix('slides')->group($slides . '/routes/web.php');
+        }
+        $this->app['router']->getRoutes()->refreshNameLookups();
+        $this->app['router']->getRoutes()->refreshActionLookups();
+        $this->app['view']->addNamespace('slides', $slides . '/resources/views');
     }
 
     /** @return array<string,mixed> */

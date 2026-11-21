@@ -220,6 +220,8 @@ class ManagementBookServiceProvider extends ServiceProvider
     {
         Relation::morphMap([
             \Platform\ManagementBook\Models\ManagementBook::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBook::class,
+            \Platform\ManagementBook\Models\ManagementBookCommittee::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBookCommittee::class,
+            \Platform\ManagementBook\Models\ManagementBookMeeting::MORPH_ALIAS => \Platform\ManagementBook\Models\ManagementBookMeeting::class,
         ]);
     }
 

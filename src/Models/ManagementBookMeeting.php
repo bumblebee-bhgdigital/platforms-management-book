@@ -20,6 +20,9 @@ use Symfony\Component\Uid\UuidV7;
  */
 class ManagementBookMeeting extends Model implements HasDisplayName
 {
+    /** Morph-Alias (z. B. für Slides-Decks, die lose an einer Sitzung hängen). */
+    public const MORPH_ALIAS = 'management_book_meeting';
+
     use SoftDeletes;
 
     protected $table = 'management_book_meetings';

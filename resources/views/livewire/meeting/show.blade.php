@@ -92,6 +92,11 @@
                         <x-nx-stat label="Teilnehmer" :value="$present . ' / ' . $meeting->attendees->count()" icon="heroicon-o-users" hint="anwesend / eingeladen" />
                     </x-nx-stat-grid>
 
+                    {{-- Präsentationen (Slides, lose gekoppelt) --}}
+                    @if(\Platform\ManagementBook\Livewire\LinkedDecks::available())
+                        <livewire:management-book.linked-decks :linkable-type="\Platform\ManagementBook\Models\ManagementBookMeeting::MORPH_ALIAS" :linkable-id="$meeting->id" :key="'decks-meeting-' . $meeting->id" />
+                    @endif
+
                     {{-- Agenda --}}
                     <section class="space-y-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

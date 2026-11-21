@@ -48,3 +48,9 @@ Orientiert am Academy-Kurs „Management“ (BROICH.MANAGEMENTMODELL): Regelkrei
 - **Gremium** (`/committees/{id}`) und **Sitzung** (`/meetings/{id}`): Mitglieder, Sitzungen, offene Beschlüsse; Agenda mit LA-Leitfaden (Ziel, Beobachtung, Hindernis, lokal lösbar, Unterstützung des Gesamtsystems) und sechs Handlungsfähigkeits-Kriterien, Beschlüsse, Teilnehmer, Protokoll, Unterlagen.
 - Kennzahlen kommen aus `Services/BookInsights`. Neue Felder: Kapitel als `strategic_documents`-Typen (auch über `strategy.GET/PUT`), Agenda-Punkte `goal/observation/obstacle/local_solution/system_support/organization_entity_id/outcome_checks` (auch über `agenda_items.*`).
 - Tests: `tests/run-in-taiste.sh tests/Feature/Ui*Test.php` (HTTP-Render + Aktionen gegen sqlite).
+
+## Präsentationen an Sitzung und Gremium (Slides, lose gekoppelt)
+
+Ist das Modul `slides` installiert, zeigen Sitzungs- und Gremium-Seite einen Abschnitt „Präsentationen“ (Livewire `management-book.linked-decks`): verknüpfte Decks mit Vorschau der ersten Folie (isoliertes iframe aus Slides), Folienanzahl, Status und „Präsentieren“ / „Referentenansicht“ / „Öffnen“ / „PDF“ (je nach vorhandener Slides-Route). Decks anlegen, vorhandene verknüpfen oder lösen. Verknüpft wird über `slides_deck_links` mit den Morph-Aliasen `management_book_meeting` bzw. `management_book_committee` (neu registriert). Agenten bereiten Decks über `slides.*` vor (`slides.links.POST` mit diesen Aliasen); die Vorschau prüft per Polling die Deck-Revision und aktualisiert sich live. Ohne Slides bleibt der Abschnitt ausgeblendet.
+
+Tests: `SLIDES_MODULE_PATH=<slides> tests/run-in-taiste.sh tests/Feature/UiSlidesIntegrationTest.php` (ohne die Variable werden die Slides-Fälle übersprungen).

@@ -21,6 +21,9 @@ use Symfony\Component\Uid\UuidV7;
  */
 class ManagementBookCommittee extends Model implements HasDisplayName
 {
+    /** Morph-Alias (z. B. für Slides-Decks, die lose an einem Gremium hängen). */
+    public const MORPH_ALIAS = 'management_book_committee';
+
     use SoftDeletes;
 
     protected $table = 'management_book_committees';

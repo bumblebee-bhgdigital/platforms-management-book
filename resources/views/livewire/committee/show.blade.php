@@ -190,6 +190,11 @@
                         </x-nx-card>
                     </section>
 
+                    {{-- Präsentationen am Gremium (Slides, lose gekoppelt) --}}
+                    @if(\Platform\ManagementBook\Livewire\LinkedDecks::available())
+                        <livewire:management-book.linked-decks :linkable-type="\Platform\ManagementBook\Models\ManagementBookCommittee::MORPH_ALIAS" :linkable-id="$committee->id" :compact="true" :key="'decks-committee-' . $committee->id" />
+                    @endif
+
                     {{-- Mitglieder --}}
                     <section class="space-y-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
