@@ -13,7 +13,7 @@ use Platform\ManagementBook\Models\ManagementBookStrategicDocument;
 use Platform\ManagementBook\Tools\Concerns\HandlesStrategy;
 
 /**
- * Kombinierte Sicht auf die Strategie eines Management Books (Gegenstück zu organization.strategy.GET):
+ * Kombinierte Sicht auf die Strategie eines Management Books (einzige Strategie-Quelle; die Organisation liest sie über die StrategySource):
  * Mission/Vision + Forecasts + Fokusräume + Zielbilder + Hindernisse + Meilensteine + Transformation Map.
  */
 class GetBookStrategyTool implements ToolContract, ToolMetadataContract
@@ -27,7 +27,7 @@ class GetBookStrategyTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'GET /management-book/books/{id}/strategy - Kombinierte Sicht auf die Strategie eines Management Books: Mission/Vision + Forecasts (mit Zieljahr) + '
+        return 'GET /management-book/books/{id}/strategy - Kombinierte Sicht auf die Strategie eines Management Books (einzige Strategie-Quelle der Plattform; die Organisation hat keine eigenen Strategie-Tools mehr, organization.brief.GET zeigt nur eine Kurzfassung): Mission/Vision + Forecasts (mit Zieljahr) + '
             . 'Fokusräume (je mit Zielbildern, Hindernissen, Meilensteinen und den drei Leitfragen) + Transformation Map (Meilensteine nach Jahr/Quartal). '
             . 'Argumente: management_book_id (pflicht), include_content (default true; lädt Markdown von Mission/Vision/Forecast/Fokusraum). '
             . 'Ersetzt viele Einzel-Calls; Änderungen über management-book.strategy.PUT, forecasts/focus_areas/vision_images/obstacles/milestones.*.';

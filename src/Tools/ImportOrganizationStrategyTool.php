@@ -23,7 +23,7 @@ class ImportOrganizationStrategyTool implements ToolContract, ToolMetadataContra
 
     public function getDescription(): string
     {
-        return 'POST /management-book/import/organization-strategy - Übernimmt den Strategie-Layer der Organisation eines Knotens (Mission/Vision, Forecasts inkl. aller Versionen, '
+        return 'POST /management-book/import/organization-strategy - NUR FÜR DEN EINMALIGEN UMZUG von Altdaten (der Strategie-Layer der Organisation ist zurückgebaut, die Tabellen bestehen noch). Übernimmt den Strategie-Layer der Organisation eines Knotens (Mission/Vision, Forecasts inkl. aller Versionen, '
             . 'Fokusräume auch ohne Forecast, Zielbilder, Hindernisse, Meilensteine, OKR-Beiträge) serverseitig 1:1 in ein Management Book. Pflicht: entity_id. '
             . 'Ohne management_book_id wird ein neues aktives Book am Knoten angelegt (Fehler, wenn dort schon eins aktiv ist). '
             . 'Mit management_book_id + focus_area_ids werden nur diese Fokusräume nachgetragen. Idempotent (übernimmt die UUIDs der Quelle, bereits Übernommenes wird übersprungen). '
