@@ -8,8 +8,27 @@
     $current = $cycle[$station] ?? $cycle[0];
     $levels = collect(\Platform\ManagementBook\Enums\RiskLevel::cases());
     $plain = fn ($md, $len) => \Illuminate\Support\Str::limit(trim(strip_tags(\Illuminate\Support\Str::markdown((string) $md))), $len);
-    $vision = $i['vision'] && filled($i['vision']->content) ? $plain($i['vision']->content, 320) : null;
-    $mission = $i['mission'] && filled($i['mission']->content) ? $plain($i['mission']->content, 320) : null;
+    // Leitsatz: eigener Titel des Dokuments (z. B. „Die Werkstatt mit zwei Ebenen“), sonst der Anfang des Textes.
+    // Der Text darunter ist ein ruhiger Auszug – das vollständige Kapitel steht im Book.
+    $lead = function ($doc, string $default) use ($plain) {
+        if (! $doc || (! filled($doc->content) && ! filled($doc->title))) {
+            return [null, null];
+        }
+        $hasTitle = filled($doc->title) && trim($doc->title) !== $default;
+
+        if (! $hasTitle) {
+            return [$plain($doc->content, 160), null];
+        }
+        $text = trim(strip_tags(\Illuminate\Support\Str::markdown((string) $doc->content)));
+        // Beginnt der Text mit dem Titel (Überschrift im Markdown), diesen nicht doppelt zeigen
+        if (str_starts_with($text, trim($doc->title))) {
+            $text = ltrim(mb_substr($text, mb_strlen(trim($doc->title))), " \n\r\t—–-:");
+        }
+
+        return [trim($doc->title), $text !== '' ? \Illuminate\Support\Str::limit(preg_replace('/\s+/', ' ', $text), 280) : null];
+    };
+    [$vision, $visionExcerpt] = $lead($i['vision'], 'Vision');
+    [$mission, $missionExcerpt] = $lead($i['mission'], 'Mission');
     $stateColor = [
         'done' => 'var(--nx-success)',
         'active' => 'var(--nx-info)',
@@ -33,12 +52,18 @@
                     <div>
                         <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-[color:var(--nx-muted)]">@svg('heroicon-o-eye', 'w-3.5 h-3.5') Vision – wohin wir wollen</div>
                         <p class="m-0 text-2xl font-semibold leading-tight tracking-tight text-[color:var(--nx-text)] md:text-3xl">{{ $vision }}</p>
+                        @if($visionExcerpt)
+                            <p class="mt-3 mb-0 text-[15px] leading-7 text-[color:var(--nx-muted)]">{{ $visionExcerpt }}</p>
+                        @endif
                     </div>
                 @endif
                 @if($mission)
                     <div>
                         <div class="mb-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-[color:var(--nx-muted)]">@svg('heroicon-o-heart', 'w-3.5 h-3.5') Mission – warum es uns gibt</div>
                         <p class="m-0 {{ $vision ? 'text-base leading-relaxed text-[color:var(--nx-muted)]' : 'text-2xl font-semibold leading-tight tracking-tight text-[color:var(--nx-text)] md:text-3xl' }}">{{ $mission }}</p>
+                        @if($missionExcerpt)
+                            <p class="mt-2 mb-0 text-sm leading-relaxed text-[color:var(--nx-muted)]">{{ $missionExcerpt }}</p>
+                        @endif
                     </div>
                 @endif
                 @if(! $vision || ! $mission)
