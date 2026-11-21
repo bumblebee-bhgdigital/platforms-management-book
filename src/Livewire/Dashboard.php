@@ -1,8 +1,9 @@
 <?php
 
 /**
- * Übersichtsseite: alle Management Books des Teams (Team-Familie, nur sichtbare), mit Statusfilter,
- * Knoten-Anzeige und Anlegen. Route-Name bleibt management-book.dashboard (Modul-Navigation).
+ * Cockpit über alle sichtbaren Management Books des Teams (Team-Familie): Kennzahlen, nächste Sitzungen,
+ * offene Beschlüsse, Top-Risiken; darunter die Book-Liste mit Statusfilter, Knoten-Anzeige und Anlegen.
+ * Route-Name bleibt management-book.dashboard (Modul-Navigation).
  */
 
 namespace Platform\ManagementBook\Livewire;
@@ -16,6 +17,7 @@ use Platform\ManagementBook\Enums\ReviewRhythm;
 use Platform\ManagementBook\Exceptions\ManagementBookException;
 use Platform\ManagementBook\Livewire\Concerns\ResolvesTeamFamily;
 use Platform\ManagementBook\Models\ManagementBook;
+use Platform\ManagementBook\Services\BookInsights;
 use Platform\ManagementBook\Services\ManagementBookService;
 use Platform\Organization\Models\OrganizationEntity;
 use Platform\Organization\Services\EntityDimensionBridge;
@@ -127,7 +129,10 @@ class Dashboard extends Component
                 && in_array($b->status, [ManagementBookStatus::ACTIVE, ManagementBookStatus::DRAFT], true))->count(),
         ];
 
+        $insights = app(BookInsights::class)->forBooks($all);
+
         return view('management-book::livewire.dashboard', [
+            'i' => $insights,
             'books' => $books,
             'nodesByBook' => $nodesByBook,
             'stats' => $stats,

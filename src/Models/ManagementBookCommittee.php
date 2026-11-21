@@ -95,6 +95,11 @@ class ManagementBookCommittee extends Model implements HasDisplayName
         return $this->hasMany(ManagementBookCommitteeMember::class, 'committee_id');
     }
 
+    public function meetings(): HasMany
+    {
+        return $this->hasMany(ManagementBookMeeting::class, 'committee_id');
+    }
+
     public function getDisplayName(): ?string
     {
         return $this->name;

@@ -66,6 +66,35 @@ enum RiskLevel: string
         };
     }
 
+    /** Bewertungsskala Eintrittswahrscheinlichkeit E (Vorlage, Blatt „Bewertung“). */
+    public static function probabilityLabels(): array
+    {
+        return [1 => 'sehr unwahrscheinlich', 2 => 'unwahrscheinlich', 3 => 'möglich', 4 => 'wahrscheinlich', 5 => 'sehr wahrscheinlich'];
+    }
+
+    /** Bewertungsskala Auswirkung A (Vorlage, Blatt „Bewertung“). */
+    public static function impactLabels(): array
+    {
+        return [
+            1 => 'gering (kaum Einfluss)',
+            2 => 'moderat (behebbar, geringer Aufwand)',
+            3 => 'deutlich (erhöhte Kosten, Kundenreklamationen)',
+            4 => 'schwerwiegend (Image, Prozessausfall)',
+            5 => 'existenzbedrohend (massiver Schaden)',
+        ];
+    }
+
+    /** Hintergrund-Tönung je Stufe (für Heatmap/Matrix, nx-Semantikfarben). */
+    public function tint(): string
+    {
+        return match ($this) {
+            self::LOW => 'rgba(47,158,68,.16)',
+            self::MODERATE => 'rgba(230,180,0,.20)',
+            self::HIGH => 'rgba(232,89,12,.20)',
+            self::CRITICAL => 'rgba(224,49,49,.22)',
+        };
+    }
+
     /** @return string[] */
     public static function values(): array
     {

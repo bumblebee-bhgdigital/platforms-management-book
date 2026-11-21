@@ -22,8 +22,9 @@ class UpdateBookStrategyTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /management-book/books/{id}/strategy - Setzt Mission und/oder Vision eines Management Books. Pflicht: management_book_id und mindestens eines von mission/vision '
-            . '(Objekt mit content [Markdown], optional title, change_note). Versioniert: jede Änderung legt eine neue aktive Version an, die bisherige bleibt als Historie erhalten. '
+        return 'PUT /management-book/books/{id}/strategy - Setzt Mission, Vision und/oder Kapitel eines Management Books. Pflicht: management_book_id und mindestens eines von '
+            . implode('/', StrategicDocumentType::values()) . ' (Objekt mit content [Markdown], optional title, change_note). '
+            . 'Kapitel: origin (Woher kommen wir?), current_situation (Wo stehen wir?), priorities, business_fields, principles (Führungs-/Entscheidungsgrundsätze), capabilities, collaboration. Versioniert: jede Änderung legt eine neue aktive Version an, die bisherige bleibt als Historie erhalten. '
             . 'Unveränderter Inhalt erzeugt keine neue Version.';
     }
 
@@ -45,6 +46,10 @@ class UpdateBookStrategyTool implements ToolContract, ToolMetadataContract
                 'management_book_id' => ['type' => 'integer', 'description' => 'Management Book (ERFORDERLICH).'],
                 'mission' => $doc('Mission – warum es das Book/den Knoten gibt (zeitlich stabil)'),
                 'vision' => $doc('Vision – gewollter Zukunftszustand (5–10 Jahre)'),
+            ] + collect(StrategicDocumentType::cases())
+                ->reject(fn ($t) => in_array($t, [StrategicDocumentType::MISSION, StrategicDocumentType::VISION], true))
+                ->mapWithKeys(fn ($t) => [$t->value => $doc("Kapitel „{$t->label()}“ – {$t->question()}")])
+                ->all() + [
                 'team_id' => ['type' => 'integer', 'description' => 'Optional: Team-ID (Default: aktuelles Team).'],
             ],
             'required' => ['management_book_id'],
@@ -78,7 +83,7 @@ class UpdateBookStrategyTool implements ToolContract, ToolMetadataContract
                 $inputs[$type->value] = [$type, $in];
             }
             if ($inputs === []) {
-                return ToolResult::error('VALIDATION_ERROR', 'mission und/oder vision angeben.');
+                return ToolResult::error('VALIDATION_ERROR', 'Mindestens eines von ' . implode(', ', StrategicDocumentType::values()) . ' angeben.');
             }
 
             $changed = [];

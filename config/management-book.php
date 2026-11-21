@@ -75,11 +75,6 @@ return [
                     'route' => 'management-book.dashboard',
                     'icon'  => 'heroicon-o-book-open',
                 ],
-                [
-                    'label' => 'nx-Showcase',
-                    'route' => 'management-book.showcase',
-                    'icon'  => 'heroicon-o-swatch',
-                ],
             ],
         ],
     ],

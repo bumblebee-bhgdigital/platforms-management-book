@@ -33,6 +33,8 @@ Route::get('/', Dashboard::class)->name('management-book.dashboard');
 // {managementBook} = Route-Model-Binding auf die ID (wie {plannerProject} im Planner).
 Route::get('/books', Dashboard::class)->name('management-book.books.index');
 Route::get('/books/{managementBook}', Show::class)->name('management-book.books.show');
+Route::get('/committees/{committee}', \Platform\ManagementBook\Livewire\Committee\Show::class)->name('management-book.committees.show');
+Route::get('/meetings/{meeting}', \Platform\ManagementBook\Livewire\Meeting\Show::class)->name('management-book.meetings.show');
 
 /**
  * nx-Showcase Route

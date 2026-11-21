@@ -113,6 +113,13 @@ class GetBookStrategyTool implements ToolContract, ToolMetadataContract
                 ],
                 'mission' => $mission ? $this->documentToArray($mission, $withContent) : null,
                 'vision' => $vision ? $this->documentToArray($vision, $withContent) : null,
+                'chapters' => collect(StrategicDocumentType::cases())
+                    ->reject(fn ($t) => in_array($t, [StrategicDocumentType::MISSION, StrategicDocumentType::VISION], true))
+                    ->mapWithKeys(function ($t) use ($book, $withContent) {
+                        $doc = ManagementBookStrategicDocument::activeFor($book->id, $t);
+
+                        return [$t->value => $doc ? $this->documentToArray($doc, $withContent) : null];
+                    })->all(),
                 'forecasts' => $forecastData,
                 'focus_areas' => $focusAreaData,
                 'transformation_map' => [

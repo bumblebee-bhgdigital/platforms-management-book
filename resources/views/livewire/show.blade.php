@@ -1,6 +1,6 @@
 {{--
-    Detailseite Management Book (nx-Design-System): Eigenschaften + Platzhalter-Bereiche.
-    Strategie / Risiken / Analysen / Gremien folgen in eigenen Boards und docken hier als Bereiche an.
+    Detailseite Management Book (nx-Design-System): Kopf mit Eckdaten und Knoten, darunter Bereiche als Tabs.
+    Jeder Bereich ist eine eigene Livewire-Komponente unter Livewire/Book (management-book.book.*).
 --}}
 
 <x-ui-page>
@@ -45,88 +45,96 @@
             </x-nx-callout>
         @endif
 
-        {{-- Kopf --}}
-        <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0">
-                <h1 class="m-0 text-xl font-semibold text-[color:var(--nx-text)] truncate">{{ $book->title }}</h1>
-                @if($book->description)
-                    <p class="mt-1 mb-0 text-sm text-[color:var(--nx-muted)] whitespace-pre-line">{{ $book->description }}</p>
-                @endif
+        {{-- Kopf: Titel, Status, Knoten und Eckdaten --}}
+        <div class="space-y-3">
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h1 class="m-0 truncate text-2xl font-semibold tracking-tight text-[color:var(--nx-text)]">{{ $book->title }}</h1>
+                        <x-nx-badge :variant="$book->status->badgeVariant()" dot>{{ $book->status->label() }}</x-nx-badge>
+                    </div>
+                    @if($book->description)
+                        <p class="mt-1 mb-0 max-w-3xl text-sm text-[color:var(--nx-muted)] whitespace-pre-line">{{ $book->description }}</p>
+                    @endif
+                </div>
             </div>
-            <x-nx-badge :variant="$book->status->badgeVariant()" dot>{{ $book->status->label() }}</x-nx-badge>
-        </div>
 
-        {{-- Eigenschaften --}}
-        <x-nx-card>
-            <x-nx-property-row icon="heroicon-o-building-office" label="Knoten">
-                <div class="flex flex-wrap items-center gap-2">
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[color:var(--nx-muted)]">
+                <span class="inline-flex items-center gap-1.5">
+                    @svg('heroicon-o-building-office', 'w-4 h-4 text-[color:var(--nx-faint)]')
                     @forelse($nodes as $node)
-                        <a href="{{ route('organization.entities.show', $node) }}" wire:navigate class="inline-flex items-center gap-1 text-sm hover:underline">
-                            {{ $node->name }}
-                            @if($node->type)<span class="text-xs text-[color:var(--nx-muted)]">({{ $node->type->name }})</span>@endif
-                        </a>
+                        <a href="{{ route('organization.entities.show', $node) }}" wire:navigate class="text-[color:var(--nx-text)] hover:underline">{{ $node->name }}</a>@if(! $loop->last),@endif
                     @empty
-                        <span class="text-[color:var(--nx-muted)]">Nicht verknüpft</span>
+                        <span>Nicht verknüpft</span>
                     @endforelse
-
                     @can('update', $book)
-                        <button type="button" wire:click="startLinking({{ $book->id }})" class="text-xs text-[color:var(--nx-muted)] hover:text-[color:var(--nx-text)] underline">
-                            {{ $nodes->isEmpty() ? 'Mit Knoten verknüpfen' : 'Umhängen' }}
+                        <button type="button" wire:click="startLinking({{ $book->id }})" class="ml-1 text-xs underline hover:text-[color:var(--nx-text)]">
+                            {{ $nodes->isEmpty() ? 'verknüpfen' : 'umhängen' }}
                         </button>
                         @if($nodes->isNotEmpty())
-                            <button type="button" wire:click="unlinkBook({{ $book->id }})" wire:confirm="Verknüpfung mit dem Knoten lösen?" class="text-xs text-[color:var(--nx-muted)] hover:text-[color:var(--nx-danger)] underline">Lösen</button>
+                            <button type="button" wire:click="unlinkBook({{ $book->id }})" wire:confirm="Verknüpfung mit dem Knoten lösen?" class="text-xs underline hover:text-[color:var(--nx-danger)]">lösen</button>
                         @endif
                     @endcan
-                </div>
-
-                @if($linkingBookId === $book->id)
-                    <div class="mt-2 rounded-md border border-[color:var(--nx-line)] p-2">
-                        <div class="flex items-center gap-2 mb-1">
-                            <input type="text" wire:model.live.debounce.300ms="linkSearch" placeholder="Knoten suchen …"
-                                   class="w-full rounded border border-[color:var(--nx-line)] bg-transparent px-2 py-1 text-sm text-[color:var(--nx-text)]" />
-                            <x-nx-button variant="ghost" size="sm" wire:click="cancelLinking">Abbrechen</x-nx-button>
-                        </div>
-                        @forelse($linkCandidates as $candidate)
-                            <button type="button" wire:key="cand-{{ $candidate['id'] }}" wire:click="linkTo({{ $candidate['id'] }})"
-                                    class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[color:var(--nx-hover)]">
-                                <span class="truncate">{{ $candidate['name'] }}</span>
-                                @if($candidate['type'])<span class="ml-auto text-xs text-[color:var(--nx-muted)]">{{ $candidate['type'] }}</span>@endif
-                            </button>
-                        @empty
-                            <div class="px-2 py-1 text-sm text-[color:var(--nx-muted)]">Keine passenden Knoten (Schreibrecht erforderlich).</div>
-                        @endforelse
-                    </div>
+                </span>
+                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-flag', 'w-4 h-4 text-[color:var(--nx-faint)]') Horizont {{ $book->horizon_year ?? '–' }}</span>
+                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-calendar-days', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->valid_from?->format('d.m.Y') ?? '–' }} – {{ $book->valid_until?->format('d.m.Y') ?? '–' }}</span>
+                <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-user', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->owner?->name ?? 'kein Owner' }}</span>
+                @if($book->responsibleAgent)
+                    <span class="inline-flex items-center gap-1.5">@svg('heroicon-o-cpu-chip', 'w-4 h-4 text-[color:var(--nx-faint)]') {{ $book->responsibleAgent->name }}</span>
                 @endif
-            </x-nx-property-row>
-            <x-nx-property-row icon="heroicon-o-calendar" label="Zieljahr / Horizont">{{ $book->horizon_year ?? '–' }}</x-nx-property-row>
-            <x-nx-property-row icon="heroicon-o-calendar-days" label="Gültig">
-                {{ $book->valid_from?->format('d.m.Y') ?? '–' }} – {{ $book->valid_until?->format('d.m.Y') ?? '–' }}
-                <span class="ml-1 text-xs text-[color:var(--nx-muted)]">(informativ, Überschneidungen erlaubt)</span>
-            </x-nx-property-row>
-            <x-nx-property-row icon="heroicon-o-user" label="Owner">{{ $book->owner?->name ?? '–' }}</x-nx-property-row>
-            <x-nx-property-row icon="heroicon-o-cpu-chip" label="Verantwortlicher Agent">{{ $book->responsibleAgent?->name ?? '–' }}</x-nx-property-row>
-            <x-nx-property-row icon="heroicon-o-arrow-path" label="Review">
-                {{ $book->review_rhythm?->label() ?? '–' }}
-                @if($book->next_review_at) · nächstes {{ $book->next_review_at->format('d.m.Y') }} @endif
-            </x-nx-property-row>
-        </x-nx-card>
+                <span class="inline-flex items-center gap-1.5 {{ $book->next_review_at && $book->next_review_at->isPast() ? 'text-[color:var(--nx-warning)]' : '' }}">
+                    @svg('heroicon-o-arrow-path', 'w-4 h-4 text-[color:var(--nx-faint)]')
+                    Review {{ $book->review_rhythm?->label() ?? '' }}{{ $book->next_review_at ? ' · ' . $book->next_review_at->format('d.m.Y') : ' –' }}
+                </span>
+            </div>
 
-        {{-- Platzhalter-Bereiche (folgen in eigenen Boards) --}}
-        <x-nx-section icon="heroicon-o-flag" title="Strategie" description="Strategische Ziele, Leitplanken und Maßnahmen dieses Knotens.">
-            <x-nx-card><x-nx-empty icon="heroicon-o-flag">Noch keine Strategie — dieser Bereich folgt in einem eigenen Board.</x-nx-empty></x-nx-card>
-        </x-nx-section>
+            @if($linkingBookId === $book->id)
+                <div class="max-w-md rounded-[8px] border border-[color:var(--nx-line)] bg-[color:var(--nx-surface)] p-2">
+                    <div class="mb-1 flex items-center gap-2">
+                        <input type="text" wire:model.live.debounce.300ms="linkSearch" placeholder="Knoten suchen …"
+                               class="w-full rounded-[6px] border border-[color:var(--nx-line)] bg-transparent px-2 py-1 text-sm text-[color:var(--nx-text)]" />
+                        <x-nx-button variant="ghost" size="sm" wire:click="cancelLinking">Abbrechen</x-nx-button>
+                    </div>
+                    @forelse($linkCandidates as $candidate)
+                        <button type="button" wire:key="cand-{{ $candidate['id'] }}" wire:click="linkTo({{ $candidate['id'] }})"
+                                class="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left text-sm hover:bg-[color:var(--nx-hover)]">
+                            <span class="truncate">{{ $candidate['name'] }}</span>
+                            @if($candidate['type'])<span class="ml-auto text-xs text-[color:var(--nx-muted)]">{{ $candidate['type'] }}</span>@endif
+                        </button>
+                    @empty
+                        <div class="px-2 py-1 text-sm text-[color:var(--nx-muted)]">Keine passenden Knoten (Schreibrecht erforderlich).</div>
+                    @endforelse
+                </div>
+            @endif
+        </div>
 
-        <x-nx-section icon="heroicon-o-exclamation-triangle" title="Risiken" description="Risikoregister und Bewertung.">
-            <x-nx-card><x-nx-empty icon="heroicon-o-exclamation-triangle">Noch keine Risiken — dieser Bereich folgt in einem eigenen Board.</x-nx-empty></x-nx-card>
-        </x-nx-section>
+        {{-- Bereiche --}}
+        <div>
+            <x-nx-tabs>
+                @foreach($tabs as $key => $t)
+                    <x-nx-tab :active="$activeTab === $key" wire:click="setTab('{{ $key }}')" wire:key="tab-{{ $key }}">
+                        <span class="inline-flex items-center gap-1.5">@svg($t['icon'], 'w-4 h-4') {{ $t['label'] }}</span>
+                    </x-nx-tab>
+                @endforeach
+            </x-nx-tabs>
 
-        <x-nx-section icon="heroicon-o-chart-bar" title="Analysen" description="Lage-, Umfeld- und Wirkungsanalysen.">
-            <x-nx-card><x-nx-empty icon="heroicon-o-chart-bar">Noch keine Analysen — dieser Bereich folgt in einem eigenen Board.</x-nx-empty></x-nx-card>
-        </x-nx-section>
-
-        <x-nx-section icon="heroicon-o-user-group" title="Gremien" :hint="$committees->count()" description="Gremien (z. B. Lenkungsausschuss) mit Sitzungen, Agenda, Unterlagen, Protokoll und Beschlüssen.">
-            <x-nx-card><x-nx-empty icon="heroicon-o-user-group">Noch keine Gremien — Gremien und Sitzungen folgen in eigenen Boards (Kaskade: Book → Gremium → Sitzung).</x-nx-empty></x-nx-card>
-        </x-nx-section>
+            @switch($activeTab)
+                @case('book')
+                    <livewire:management-book.book.chapters :book-id="$book->id" :key="'book-chapters-' . $book->id" />
+                    @break
+                @case('strategy')
+                    <livewire:management-book.book.strategy :book-id="$book->id" :key="'book-strategy-' . $book->id" />
+                    @break
+                @case('risks')
+                    <livewire:management-book.book.risks :book-id="$book->id" :key="'book-risks-' . $book->id" />
+                    @break
+                @case('committees')
+                    <livewire:management-book.book.committees :book-id="$book->id" :key="'book-committees-' . $book->id" />
+                    @break
+                @default
+                    <livewire:management-book.book.overview :book-id="$book->id" :key="'book-overview-' . $book->id" />
+            @endswitch
+        </div>
     </x-ui-page-container>
 
     {{-- Bearbeiten --}}

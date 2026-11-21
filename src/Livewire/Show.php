@@ -11,6 +11,7 @@ namespace Platform\ManagementBook\Livewire;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Platform\Core\Livewire\Concerns\HasPageContext;
 use Platform\ManagementBook\Enums\ManagementBookStatus;
@@ -26,6 +27,18 @@ class Show extends Component
     use HasPageContext, LinksBooksToNodes;
 
     public ManagementBook $managementBook;
+
+    /** Aktiver Bereich: overview | book | strategy | risks | committees */
+    #[Url(as: 'tab')]
+    public string $tab = 'overview';
+
+    public const TABS = [
+        'overview' => ['label' => 'Übersicht', 'icon' => 'heroicon-o-squares-2x2'],
+        'book' => ['label' => 'Book', 'icon' => 'heroicon-o-book-open'],
+        'strategy' => ['label' => 'Strategie', 'icon' => 'heroicon-o-flag'],
+        'risks' => ['label' => 'Risiken', 'icon' => 'heroicon-o-exclamation-triangle'],
+        'committees' => ['label' => 'Gremien', 'icon' => 'heroicon-o-user-group'],
+    ];
 
     public bool $showEdit = false;
     public array $form = [];
@@ -63,6 +76,11 @@ class Show extends Component
     public function refreshBook(): void
     {
         $this->managementBook->refresh();
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = array_key_exists($tab, self::TABS) ? $tab : 'overview';
     }
 
     public function openEdit(): void
@@ -172,7 +190,8 @@ class Show extends Component
             'book' => $book,
             'nodes' => $nodes,
             'wouldSupersede' => $wouldSupersede->values(),
-            'committees' => $book->committees()->get(),
+            'tabs' => self::TABS,
+            'activeTab' => array_key_exists($this->tab, self::TABS) ? $this->tab : 'overview',
             'linkCandidates' => $this->linkCandidates(),
             'rhythmOptions' => array_map(fn (ReviewRhythm $r) => ['value' => $r->value, 'label' => $r->label()], ReviewRhythm::cases()),
         ])->layout('platform::layouts.app');
