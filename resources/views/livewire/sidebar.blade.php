@@ -45,12 +45,5 @@
             <div class="px-3 py-1 text-xs text-[var(--nx-muted)]">Keine Management Books</div>
         @endif
 
-        {{-- Showcase (Gerüst-Beispiel) bleibt erreichbar --}}
-        <x-ui-sidebar-list label="Entwicklung">
-            <x-ui-sidebar-item :href="route('management-book.showcase')">
-                @svg('heroicon-o-swatch', 'w-4 h-4 text-[var(--nx-text)]')
-                <span class="ml-2 text-sm">nx-Showcase</span>
-            </x-ui-sidebar-item>
-        </x-ui-sidebar-list>
     </div>
 </div>
