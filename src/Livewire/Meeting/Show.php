@@ -210,14 +210,11 @@ class Show extends Component
         $item->update(['proposal_status' => ManagementBookAgendaItem::PROPOSAL_ACCEPTED]);
     }
 
-    /** Entwurf herausnehmen: das Signal geht zurück an die Einheit (lokal lösen). */
+    /** Entwurf herausnehmen; wer den Vorschlag gemacht hat (z. B. Signals), hört auf das Ereignis. */
     public function rejectProposal(int $itemId): void
     {
         $item = $this->child(ManagementBookAgendaItem::class, $itemId);
-        if ($item->linked_object_type === 'signals_signal' && $item->linked_object_id && class_exists(\Platform\Signals\Support\SignalFeedback::class)) {
-            \Platform\Signals\Support\SignalFeedback::decision((int) $item->linked_object_id, 'return_to_unit', 'management_book_agenda_item', (int) $item->id,
-                'Vom Vorsitz nicht auf die Agenda genommen – lokal lösen.', auth()->id());
-        }
+        \Platform\ManagementBook\Events\AgendaProposalRejected::dispatch($item, auth()->id());
         $item->delete();
     }
 

@@ -23,8 +23,8 @@
                     @if($item->ownerUser)<span>{{ $item->ownerUser->name }}</span>@endif
                     @if($item->duration_minutes)<span>{{ $item->duration_minutes }} Min.</span>@endif
                     @unless($guided || $isInfo)<span class="text-[color:var(--nx-faint)]">{{ $texts['unguided'] }}</span>@endunless
-                    @if($item->linked_object_type === 'signals_signal')<span>aus Signal #{{ $item->linked_object_id }}@if($item->ownerAgent) · vorbereitet von {{ $item->ownerAgent->name }}@endif</span>@endif
-                    @if($item->linked_object_type === 'signals_signal' && ! $item->local_solution_confirmed)<span class="text-[color:var(--nx-warning)]">4a noch nicht vom Bereich bestätigt</span>@endif
+                    @if($item->proposal_status)<span>Vorschlag @if($item->linkedObject)aus {{ method_exists($item->linkedObject, 'getDisplayName') ? \Illuminate\Support\Str::limit((string) $item->linkedObject->getDisplayName(), 60) : '#' . $item->linked_object_id }}@endif @if($item->ownerAgent) · vorbereitet von {{ $item->ownerAgent->name }}@endif</span>@endif
+                    @if($item->proposal_status && filled($item->local_solution) && ! $item->local_solution_confirmed)<span class="text-[color:var(--nx-warning)]">4a noch nicht vom Bereich bestätigt</span>@endif
                 </div>
             </button>
             @if($item->isProposalDraft())
