@@ -21,31 +21,109 @@ class ManagementBookCommitteeGateway implements CommitteeGateway
 
     public function committeeAbove(int $unitEntityId): ?array
     {
-        $committees = ManagementBookCommittee::query()
-            ->where('type', CommitteeType::STEERING_COMMITTEE->value)
-            ->where('status', 'active')
-            ->whereNotNull('organization_entity_id')
-            ->get();
-        if ($committees->isEmpty()) {
+        $byCarrier = $this->committeesByCarrier();
+        if ($byCarrier === []) {
             return null;
         }
+        $proxy = null;
+        $current = OrganizationEntity::with('type:id,code,vsm_class')->find($unitEntityId);
+        for ($depth = 0; $current && $depth < 30; $depth++) {
+            if (isset($byCarrier[$current->id])) {
+                return $this->describe($byCarrier[$current->id], (int) $current->id) + ['proxy_for_entity_id' => $proxy];
+            }
+            // Träger ohne eigenen aktiven LA: der LA darüber arbeitet stellvertretend für den obersten solchen Träger
+            if ($current->type?->vsm_class === 'carrier') {
+                $proxy = (int) $current->id;
+            }
+            $current = $current->parent_entity_id ? OrganizationEntity::with('type:id,code,vsm_class')->find($current->parent_entity_id) : null;
+        }
+
+        return null;
+    }
+
+    public function committeeInfo(int $committeeEntityId): ?array
+    {
+        $c = ManagementBookCommittee::query()->where('organization_entity_id', $committeeEntityId)->first();
+        $carrier = $c ? $this->carrierOf($committeeEntityId) : null;
+
+        return $c ? $this->describe($c, $carrier) : null;
+    }
+
+    public function committeeAboveCommittee(int $committeeEntityId): ?array
+    {
+        $carrier = $this->carrierOf($committeeEntityId);
+        $parent = $carrier ? OrganizationEntity::whereKey($carrier)->value('parent_entity_id') : null;
+
+        return $parent ? $this->committeeAbove((int) $parent) : null;
+    }
+
+    /**
+     * Stewards des Regelkreises: Beziehung „betreut (Regelkreis)“ (Code stewards) von Person/Agent zum Gremium-Knoten;
+     * zusätzlich der verantwortliche Agent des Gremiums (Übergang).
+     */
+    public function stewards(int $committeeEntityId): array
+    {
+        $out = [];
+        if (class_exists(\Platform\Organization\Models\OrganizationEntityRelationship::class)) {
+            $rels = \Platform\Organization\Models\OrganizationEntityRelationship::query()
+                ->where('to_entity_id', $committeeEntityId)
+                ->whereHas('relationType', fn ($q) => $q->where('code', 'stewards'))
+                ->with('fromEntity.type:id,code')->get();
+            foreach ($rels as $r) {
+                if ($e = $r->fromEntity) {
+                    $out[(int) $e->id] = ['entity_id' => (int) $e->id, 'name' => $e->name, 'user_id' => $e->linked_user_id ? (int) $e->linked_user_id : null, 'is_agent' => $e->type?->code === 'agent'];
+                }
+            }
+        }
+        $c = ManagementBookCommittee::query()->where('organization_entity_id', $committeeEntityId)->first();
+        if ($c && $c->responsible_agent_id) {
+            $e = OrganizationEntity::query()->where('linked_user_id', $c->responsible_agent_id)->first();
+            $key = $e ? (int) $e->id : 'u' . $c->responsible_agent_id;
+            $out[$key] ??= ['entity_id' => $e ? (int) $e->id : null, 'name' => $e?->name ?? \Platform\Core\Models\User::whereKey($c->responsible_agent_id)->value('name'), 'user_id' => (int) $c->responsible_agent_id, 'is_agent' => true];
+        }
+
+        return array_values($out);
+    }
+
+    public function committeesStewardedBy(int $userId): array
+    {
+        $out = [];
+        foreach (ManagementBookCommittee::query()->where('type', CommitteeType::STEERING_COMMITTEE->value)->where('status', 'active')->whereNotNull('organization_entity_id')->get() as $c) {
+            $isSteward = collect($this->stewards((int) $c->organization_entity_id))->contains(fn ($s) => (int) ($s['user_id'] ?? 0) === $userId);
+            if ($isSteward) {
+                $out[] = $this->describe($c, $this->carrierOf((int) $c->organization_entity_id));
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return array<int, ManagementBookCommittee> Träger-Einheit => aktiver LA */
+    private function committeesByCarrier(): array
+    {
         $byCarrier = [];
-        foreach ($committees as $c) {
+        foreach (ManagementBookCommittee::query()->where('type', CommitteeType::STEERING_COMMITTEE->value)->where('status', 'active')->whereNotNull('organization_entity_id')->get() as $c) {
             if ($carrier = $this->carrierOf((int) $c->organization_entity_id)) {
                 $byCarrier[$carrier] ??= $c;
             }
         }
-        $current = OrganizationEntity::find($unitEntityId);
-        for ($depth = 0; $current && $depth < 30; $depth++) {
-            if (isset($byCarrier[$current->id])) {
-                $c = $byCarrier[$current->id];
 
-                return ['committee_id' => (int) $c->id, 'entity_id' => (int) $c->organization_entity_id, 'name' => $c->organizationNode?->name ?? $c->name];
-            }
-            $current = $current->parent_entity_id ? OrganizationEntity::find($current->parent_entity_id) : null;
-        }
+        return $byCarrier;
+    }
 
-        return null;
+    /** Ebene aus dem Trägertyp: Gruppe (Venture-Träger, Holding, Gruppe) oder operative Einheit. */
+    private function describe(ManagementBookCommittee $c, ?int $carrierId): array
+    {
+        $carrierType = $carrierId ? OrganizationEntity::with('type:id,code')->find($carrierId)?->type?->code : null;
+
+        return [
+            'committee_id' => (int) $c->id,
+            'entity_id' => (int) $c->organization_entity_id,
+            'name' => $c->organizationNode?->name ?? $c->name,
+            'carrier_entity_id' => $carrierId,
+            'carrier_name' => $carrierId ? OrganizationEntity::whereKey($carrierId)->value('name') : null,
+            'level' => in_array($carrierType, ['venture_builder', 'holding', 'group'], true) ? 'group' : 'unit',
+        ];
     }
 
     public function nextMeeting(int $committeeEntityId): ?array
