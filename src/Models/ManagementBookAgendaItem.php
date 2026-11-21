@@ -35,6 +35,13 @@ class ManagementBookAgendaItem extends Model implements HasDisplayName
         'duration_minutes',
         'linked_object_type',
         'linked_object_id',
+        'goal',
+        'observation',
+        'obstacle',
+        'local_solution',
+        'system_support',
+        'organization_entity_id',
+        'outcome_checks',
         'created_by',
     ];
 
@@ -43,6 +50,8 @@ class ManagementBookAgendaItem extends Model implements HasDisplayName
         'position' => 'integer',
         'duration_minutes' => 'integer',
         'linked_object_id' => 'integer',
+        'organization_entity_id' => 'integer',
+        'outcome_checks' => 'array',
     ];
 
     protected static function booted(): void

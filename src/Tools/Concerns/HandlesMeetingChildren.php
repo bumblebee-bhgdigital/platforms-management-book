@@ -37,7 +37,8 @@ trait HandlesMeetingChildren
         return match ($kind) {
             'agenda_item' => [
                 'label' => 'Agenda-Punkt', 'plural' => 'agenda_items', 'class' => ManagementBookAgendaItem::class,
-                'fields' => ['position', 'title', 'description', 'owner_user_id', 'owner_agent_id', 'duration_minutes', 'linked_object_type', 'linked_object_id'],
+                'fields' => ['position', 'title', 'description', 'owner_user_id', 'owner_agent_id', 'duration_minutes', 'linked_object_type', 'linked_object_id',
+                    'goal', 'observation', 'obstacle', 'local_solution', 'system_support', 'organization_entity_id', 'outcome_checks'],
                 'created_by' => true, 'agenda' => false, 'search' => ['title', 'description'],
             ],
             'document' => [
@@ -90,6 +91,13 @@ trait HandlesMeetingChildren
                 'duration_minutes' => ['type' => 'integer', 'description' => 'Geplante Dauer in Minuten.'],
                 'linked_object_type' => ['type' => 'string', 'description' => 'Optional: Typ eines verknüpften Objekts (Morph-Alias, z. B. milestone). Zusammen mit linked_object_id; leerer String löst die Verknüpfung.'],
                 'linked_object_id' => ['type' => 'integer', 'description' => 'Optional: ID des verknüpften Objekts.'],
+                'goal' => ['type' => 'string', 'description' => 'Leitfaden 1 – Was wollten wir erreichen?'],
+                'observation' => ['type' => 'string', 'description' => 'Leitfaden 2 – Was beobachten wir tatsächlich?'],
+                'obstacle' => ['type' => 'string', 'description' => 'Leitfaden 3 – Was verhindert momentan die Zielerreichung?'],
+                'local_solution' => ['type' => 'string', 'description' => 'Leitfaden 4a – Was kann der verantwortliche Bereich selbst lösen?'],
+                'system_support' => ['type' => 'string', 'description' => 'Leitfaden 4b – Wobei braucht der Bereich Unterstützung des Gesamtsystems?'],
+                'organization_entity_id' => ['type' => 'integer', 'description' => 'Optional: einbringende Einheit als Knoten der Organisation (lose).'],
+                'outcome_checks' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => \Platform\ManagementBook\Enums\AgendaOutcomeCheck::values()], 'description' => 'Nach dem LA erfüllte Kriterien (ersetzt die Liste): blockers_removed, priorities_clearer, conflicts_decided, responsibilities_clear, resources_available, unit_self_reliant. Maßstab: Ist die Organisation danach handlungsfähiger?'],
             ] + $owner,
             'document' => [
                 'title' => ['type' => 'string', 'description' => 'Titel der Unterlage.'],
@@ -215,6 +223,13 @@ trait HandlesMeetingChildren
                 'duration_minutes' => $m->duration_minutes,
                 'linked_object_type' => $m->linked_object_type,
                 'linked_object_id' => $m->linked_object_id,
+                'goal' => $m->goal,
+                'observation' => $m->observation,
+                'obstacle' => $m->obstacle,
+                'local_solution' => $m->local_solution,
+                'system_support' => $m->system_support,
+                'organization_entity_id' => $m->organization_entity_id,
+                'outcome_checks' => $m->outcome_checks ?? [],
             ],
             'document' => [
                 'agenda_item_id' => $m->agenda_item_id,
@@ -294,6 +309,15 @@ trait HandlesMeetingChildren
         if (isset($arguments['status']) && ! DecisionStatus::tryFrom((string) $arguments['status'])) {
             return 'status muss einer von ' . implode(', ', DecisionStatus::values()) . ' sein.';
         }
+        if (array_key_exists('outcome_checks', $arguments) && $arguments['outcome_checks'] !== null) {
+            if (! is_array($arguments['outcome_checks'])) {
+                return 'outcome_checks muss eine Liste sein.';
+            }
+            $unknown = array_diff($arguments['outcome_checks'], \Platform\ManagementBook\Enums\AgendaOutcomeCheck::values());
+            if ($unknown !== []) {
+                return 'Unbekannte outcome_checks: ' . implode(', ', $unknown) . '.';
+            }
+        }
         foreach (['approved_at', 'due_date'] as $col) {
             if (! empty($arguments[$col])) {
                 try {
@@ -346,6 +370,9 @@ trait HandlesMeetingChildren
             if (isset($fields[$col])) {
                 $fields[$col] = trim((string) $fields[$col]);
             }
+        }
+        if (array_key_exists('outcome_checks', $fields)) {
+            $fields['outcome_checks'] = $fields['outcome_checks'] === null ? null : array_values(array_unique($fields['outcome_checks']));
         }
         if (array_key_exists('attended', $fields)) {
             $fields['attended'] = filter_var($fields['attended'], FILTER_VALIDATE_BOOLEAN);

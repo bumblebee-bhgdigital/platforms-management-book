@@ -428,7 +428,10 @@ class ManagementBookServiceProvider extends ServiceProvider
             }
 
             // Alias generieren (z.B. Entity\Index -> entity.index)
-            $aliasPath = str_replace(['\\', '/'], '.', Str::kebab(str_replace('.php', '', $relativePath)));
+            // Je Segment kebab-casen, sonst wird aus Book/Overview "book/-overview"
+            $aliasPath = collect(preg_split('#[\\\\/]#', str_replace('.php', '', $relativePath)))
+                ->map(fn ($segment) => Str::kebab($segment))
+                ->implode('.');
             $alias = $prefix . '.' . $aliasPath;
 
             // Livewire-Komponente registrieren

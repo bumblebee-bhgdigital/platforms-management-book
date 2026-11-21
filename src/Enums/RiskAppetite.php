@@ -37,6 +37,24 @@ enum RiskAppetite: string
         };
     }
 
+    /** Risiko-Skala (Folie 10): je Stufe die vier Dimensionen der Risikobereitschaft. */
+    public function profile(): array
+    {
+        return match ($this) {
+            self::VERY_LOW => ['Unternehmen riskiert so wenig wie möglich', 'Wahl der sichersten Option', 'Negative Folgen werden nicht akzeptiert', 'Sehr gering'],
+            self::LOW => ['Unternehmen geht vorsichtig mit Risiken um', 'Wahl riskanter Optionen, wenn unverzichtbar', 'Akzeptiert nur unwahrscheinliche negative Folgen', 'Gering'],
+            self::MODERATE => ['Unternehmen steht ausgeglichen zu Risiken', 'Wahl riskanter Optionen, wenn sehr viele Vorteile', 'Negative Folgen werden mit Zielen abgewogen', 'Begrenzt'],
+            self::HIGH => ['Unternehmen nimmt größere Risiken in Kauf', 'Wahl riskanter Optionen, aber Folgen beobachtet', 'Negative Folgen akzeptiert, um Ziele zu erreichen', 'Erwartet'],
+            self::VERY_HIGH => ['Unternehmen hat eine unkontrollierte Risikobereitschaft', 'Wahl von riskanten Optionen', 'Negative Folgen akzeptiert oder hingenommen', 'Vollkommen angenommen'],
+        };
+    }
+
+    /** Zeilenbeschriftungen zu profile(). */
+    public static function profileDimensions(): array
+    {
+        return ['Risikobereitschaft', 'Wahl bei mehreren Optionen', 'Haltung zu negativen Folgen', 'Akzeptiertes Level an Unsicherheit'];
+    }
+
     /** @return string[] */
     public static function values(): array
     {
